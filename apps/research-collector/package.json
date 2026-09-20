@@ -1,0 +1,13 @@
+{
+  "name": "research-collector",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test:kakao": "node src/test-kakao-local.js",
+    "test:naver-trend": "node src/test-naver-trend.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.0.0"
+  }
+}

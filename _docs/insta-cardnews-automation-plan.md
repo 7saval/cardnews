@@ -36,10 +36,12 @@
 **목표**: 수동으로 소재/이미지를 넣으면 완성된 카드뉴스 PNG가 나오는 파이프라인.
 
 1. **소재 리서치 자동화 (카카오 로컬/네이버 지역검색 API + 트렌드 데이터 조합)**
-   - **공식 지역/장소 API로 후보 확보 (1순위)**: 카카오 로컬 API, 네이버 지역검색 API로 키워드+지역 기반 장소 후보 리스트를 검색. 평점·주소·카테고리·리뷰 요약이 응답에 포함돼 있어 그대로 1차 소재로 활용 가능. 약관상 합법적 사용이라 리스크 없음.
+   - **공식 지역/장소 API로 후보 확보 (1순위)**: 카카오 로컬 API, 네이버 지역검색 API로 키워드+지역 기반 장소 후보 리스트를 검색. 응답에 상호명·주소·카테고리·전화번호·좌표가 포함돼 1차 소재 후보 리스트업엔 그대로 활용 가능. 단, **두 API 모두 평점·리뷰는 제공하지 않음** — 평점/리뷰가 필요하면 카카오맵·네이버플레이스 페이지를 참고해야 하는데 공식 API가 없어 크롤링이 필요하고 약관 위반 소지가 있으므로, Phase 1에서는 평점·리뷰 없이 장소 기본 정보만으로 소재를 구성하고 필요시 수동으로 보완한다. 공식 API 호출 자체는 약관상 합법적 사용이라 리스크 없음.
    - **트렌드 데이터로 소재 선별·랭킹 (핵심 조합)**: pytrends(Google Trends 비공식 라이브러리)나 네이버 데이터랩 API로 후보 장소/키워드의 검색량·상승세를 스코어링해서, 장소 후보 중 실제로 카드뉴스 소재로 채택할 대상과 시리즈 주제(예: "요즘 뜨는 야장")를 결정. 즉 카카오/네이버 API가 "장소 데이터"를, 트렌드 데이터가 "지금 다룰 가치가 있는 장소인지"를 판단하는 필터 역할을 함. 날씨 API와 결합하면 "기온 20도 이하 → 야장 소재 자동 트리거" 같은 타이밍 로직도 가능.
    - **블로그 텍스트 크롤링 (보조, 캡션·이미지 폴백용)**: 네이버 블로그, 티스토리 등 공개 블로그 글을 소재 아이디어 참고 및 이미지 폴백(3단계 참고)용으로 수집. RSS 피드가 있으면 우선 활용하고, 없으면 BeautifulSoup/requests로 공개 페이지만 파싱하되 robots.txt와 이용약관을 반드시 확인. 수집한 텍스트는 그대로 쓰지 않고 LLM API로 재요약·재구성해서 저작권 이슈를 최소화.
    - **인스타그램 자체 크롤링은 지양**: 경쟁 계정이나 인기 게시물을 직접 스크래핑하는 건 이용약관 위반 소지가 있고, 자동화 대상 계정 자체가 제재받을 위험이 있음. 벤치마킹이 꼭 필요하면 수동으로 참고하거나, Graph API의 해시태그 검색(비즈니스 계정 한정, 제한적)만 공식적으로 사용.
+
+   > **⚠️ 네이버 검색 API 이관 공지 (2026-09 확인)**: 네이버가 개발자센터의 Search API(지역검색 포함)·Search Trend·Shopping Insight를 NAVER Cloud Platform의 **NAVER API HUB**로 이관 중. 일정상 2026-07-31부로 기존 개발자센터에서는 **신규 신청이 이미 차단**됐고(2027-06-30까지는 그 이전 발급 키만 유예 지원), 그 이후엔 API HUB에서만 발급·호출 가능. 따라서 지금 신규로 네이버 지역검색 API를 붙이려면 NCP 계정 가입 → NAVER API HUB에서 Search API 신청 → 전용 Client ID/Secret 발급 절차를 따라야 하며, 엔드포인트도 기존 `openapi.naver.com` 방식과 달라질 수 있으니 API HUB 콘솔의 "API 이관 가이드"를 확인할 것. (출처: https://developers.naver.com/notice/article/32530)
 
 2. **JSON 스키마 설계**
    ```json
@@ -156,7 +158,7 @@
 
 | 영역 | 선택 | 비고 |
 |---|---|---|
-| 소재 리서치 | 카카오 로컬 API / 네이버 지역검색·데이터랩 API | 공식 API 우선, 무료 티어 존재 |
+| 소재 리서치 | 카카오 로컬 API(장소 후보) + NAVER API HUB 검색어트렌드 API(트렌드 스코어링) | 공식 API 우선, 무료 티어 존재. 네이버 지역검색은 카카오 로컬과 기능 중복이라 보류 |
 | 트렌드 감지 (선택) | pytrends (Google Trends 비공식) | 무료, 주제 선정 자동화용 |
 | LLM API | Claude Haiku 또는 Gemini Flash | 구조화 출력 작업, 저비용/무료 티어 우선 |
 | 프론트엔드 템플릿 | React + Vite | 컴포넌트 기반 템플릿 렌더링에 적합 |
@@ -209,7 +211,10 @@ cardnews-automation/
 
 ## 6. 체크리스트
 
-- [ ] 소재 리서치용 공식 API(카카오 로컬/네이버 지역검색) 연동
+- [x] 카카오 로컬 API 연동 및 키워드 검색 테스트 (`apps/research-collector/src/test-kakao-local.js`) — Kakao Developers에서 REST API 키만으론 부족하고 "제품 설정 > 카카오맵" 활성화가 별도로 필요했음
+- [x] NAVER API HUB 검색어트렌드 API 연동 및 조회 테스트 (`apps/research-collector/src/test-naver-trend.js`) — 기존 데이터랩 개발자센터 방식은 2026-07-31부로 신규 신청 차단, NCP API HUB로 이관해서 발급
+- [ ] 네이버 지역검색 API 연동 — 카카오 로컬 API와 기능 중복(둘 다 상호명·주소·카테고리만 제공, 평점·리뷰 없음)이라 우선순위 낮춰 보류. 필요해지면 API HUB에서 추가 신청
+- [ ] 카카오 로컬(장소 후보) + 검색어트렌드(랭킹) 결과를 합쳐 "채택할 소재 리스트"를 뽑는 스크립트로 통합 (`apps/research-collector`에 두 테스트 스크립트를 합치는 방향)
 - [x] 레퍼런스 스크린샷 수집 및 `spec.md` 레이아웃 스펙 정리
 - [x] JSON 카드 스키마 확정 (`shared/schemas/card-news.ts`)
 - [x] LLM 프롬프트 작성 및 구조화 출력 테스트 (`apps/content-generator`, Gemini API)
@@ -250,6 +255,18 @@ cardnews-automation/
 ## 9. 로컬 실행 및 확인 명령어
 
 Phase 1에서 만든 두 앱(`card-renderer`, `content-generator`)을 로컬에서 직접 실행하고 결과를 확인할 때 쓰는 명령어. 아직 9번 오케스트레이션이 없어서(1번 섹션 참고) 아래 명령어를 순서대로 사람이 직접 실행해야 한다.
+
+### research-collector
+
+```
+cd apps/research-collector
+
+# .env에 KAKAO_REST_API_KEY, NAVER_CLIENT_ID, NAVER_CLIENT_SECRET 설정 필요 (.env.example 참고)
+npm run test:kakao -- --query "강남 야장"   # 카카오 로컬 API로 장소 후보 검색
+npm run test:naver-trend                    # NAVER API HUB 검색어트렌드로 키워드 지수 조회
+```
+
+카카오는 REST API 키 발급 후 Kakao Developers 콘솔의 "제품 설정 > 카카오맵"을 켜야 `403 OPEN_MAP_AND_LOCAL` 에러 없이 호출된다. 네이버는 개발자센터가 아니라 NCP의 NAVER API HUB에서 발급받은 Client ID/Secret을 써야 한다 (1번 섹션 각주 참고).
 
 ### card-renderer
 
