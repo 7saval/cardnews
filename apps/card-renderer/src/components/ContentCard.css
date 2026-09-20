@@ -1,0 +1,40 @@
+.content-card__bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.content-card__overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 5;
+  padding: 40px 24px 56px;
+  background: linear-gradient(to top, rgba(255, 255, 255, 0.95) 40%, rgba(255, 255, 255, 0) 100%);
+  text-align: center;
+  color: #222;
+}
+
+.content-card__title {
+  font-family: 'Black Han Sans', 'Noto Sans KR', sans-serif;
+  font-size: 64px;
+  font-weight: 400;
+  color: #2b6cb0;
+  -webkit-text-stroke: 4px white;
+  paint-order: stroke fill;
+}
+
+.content-card__address {
+  margin-top: 8px;
+  font-size: 26px;
+  font-weight: 500;
+  color: #333;
+}
+
+.content-card__caption {
+  margin-top: 4px;
+  font-size: 24px;
+  color: #666;
+}

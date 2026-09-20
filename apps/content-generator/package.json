@@ -1,0 +1,13 @@
+{
+  "name": "content-generator",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "generate": "node src/generate.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.23.0",
+    "dotenv": "^17.0.0"
+  }
+}

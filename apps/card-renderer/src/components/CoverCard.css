@@ -1,0 +1,41 @@
+.cover-card__dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.cover-card__bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.cover-card__title {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 92%;
+  z-index: 5;
+  text-align: center;
+}
+
+.cover-card__line {
+  font-family: 'Black Han Sans', 'Noto Sans KR', sans-serif;
+  font-size: 110px;
+  line-height: 0.95;
+  font-weight: 400;
+  -webkit-text-stroke: 11px #16324f;
+  paint-order: stroke fill;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+}
+
+.cover-card__line--white {
+  color: #ffffff;
+}
+
+.cover-card__line--teal {
+  color: #5f9ea0;
+}

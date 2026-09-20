@@ -1,0 +1,32 @@
+.preview-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 24px;
+  background: #111;
+  min-height: 100vh;
+}
+
+.preview-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.preview-slot__label {
+  color: #ccc;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+}
+
+.preview-slot__scale {
+  width: 324px; /* 1080 * 0.3 */
+  height: 405px; /* 1350 * 0.3 */
+  overflow: hidden;
+  position: relative;
+}
+
+.preview-slot__scale > .card {
+  transform: scale(0.3);
+  transform-origin: top left;
+}

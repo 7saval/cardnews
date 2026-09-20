@@ -1,0 +1,97 @@
+.cta-card__bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.cta-card__dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.cta-card__hook {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 88%;
+  z-index: 5;
+  text-align: center;
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.cta-card__hook-sub {
+  font-size: 34px;
+  opacity: 0.9;
+  margin-bottom: 8px;
+}
+
+.cta-card__hook-main {
+  font-size: 40px;
+  font-weight: 800;
+}
+
+.cta-card__profile {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  width: 85%;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: #fff;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.cta-card__avatar {
+  flex-shrink: 0;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d946ef, #ec4899);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.cta-card__handle {
+  flex: 1;
+  font-size: 30px;
+  font-weight: 700;
+  color: #111;
+}
+
+.cta-card__follow-btn {
+  flex-shrink: 0;
+  background: #3897f0;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 14px 22px;
+}
+
+.cta-card__closing {
+  position: absolute;
+  top: 75%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 88%;
+  z-index: 5;
+  text-align: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 32px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}

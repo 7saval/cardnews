@@ -1,0 +1,31 @@
+{
+  "series_title": "서울 야장 스팟 9곳",
+  "hook_line": "이 날씨\n그냥 보낼 순\n없잖아요?",
+  "source_handle": "seoul_nightspot",
+  "cards": [
+    {
+      "order": 1,
+      "place_name": "가가바",
+      "subtitle": "음식도 맛있지만 분위기가 더 좋은 곳",
+      "caption": "노을과 와인의 조합이라면 진짜 행복...!",
+      "image_keyword": "seoul rooftop bar sunset",
+      "address": "서울 마포구 어딘가 123"
+    },
+    {
+      "order": 2,
+      "place_name": "루프탑29",
+      "subtitle": "한강뷰 맛집으로 소문난 곳",
+      "caption": "야경 보면서 맥주 한잔이면 여름 완성",
+      "image_keyword": "seoul rooftop beer night view",
+      "address": "서울 용산구 어딘가 29"
+    }
+  ],
+  "cta_card": {
+    "handle": "zinoo_travel",
+    "cta_text": "새로운 데이트 코스가 궁금해?",
+    "hook_lines": [
+      "이 계절, 이 날씨에 딱 맞는",
+      "서울 야장 스팟만 모아드립니다"
+    ]
+  }
+}
