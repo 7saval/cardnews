@@ -1,0 +1,13 @@
+{
+  "name": "insights-collector",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test:insights": "node src/test-insights.js",
+    "exchange-token": "node src/exchange-token.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.0.0"
+  }
+}

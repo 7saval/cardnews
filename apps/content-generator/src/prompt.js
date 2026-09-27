@@ -1,8 +1,13 @@
-// Gemini에게 "원본 리서치 텍스트 → 카드뉴스 카피 JSON"을 시키기 위한 프롬프트와 응답 스키마.
+// LLM에게 "원본 리서치 텍스트 → 카드뉴스 카피 JSON"을 시키기 위한 프롬프트와 응답 스키마.
+// Gemini(CARD_NEWS_RESPONSE_SCHEMA, JSON Schema)와 Claude(CARD_NEWS_ZOD_SCHEMA, Zod)가
+// 프로바이더별 구조화 출력 방식이 달라서 스키마를 두 벌 유지한다 — 필드를 바꿀 땐 항상
+// 같이 수정할 것.
 //
 // source_handle / cta_card.handle은 여기 스키마에 없다 — 그건 우리 계정 정보라 LLM이
 // 지어내면 안 되는 값이고, generate.js가 --handle 인자로 받아 응답에 직접 주입한다.
 // image_keyword는 남겨두되 image_url은 스키마에 없다 — 이미지 매칭은 Phase 3(image-matcher)의 몫.
+
+import { z } from 'zod';
 
 export const SYSTEM_PROMPT = `너는 인스타그램 카드뉴스 카피라이터야. 아래 규칙을 반드시 지켜서 응답해.
 
@@ -47,3 +52,22 @@ export const CARD_NEWS_RESPONSE_SCHEMA = {
   },
   required: ['series_title', 'hook_line', 'cards', 'cta_card'],
 };
+
+export const CARD_NEWS_ZOD_SCHEMA = z.object({
+  series_title: z.string(),
+  hook_line: z.string(),
+  cards: z.array(
+    z.object({
+      order: z.number().int(),
+      place_name: z.string(),
+      subtitle: z.string(),
+      caption: z.string(),
+      image_keyword: z.string(),
+      address: z.string().optional(),
+    }),
+  ),
+  cta_card: z.object({
+    cta_text: z.string(),
+    hook_lines: z.array(z.string()),
+  }),
+});

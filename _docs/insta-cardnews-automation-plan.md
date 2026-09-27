@@ -96,17 +96,25 @@
 
 1. **데이터 수집 배치**
    - GitHub Actions 크론(1일 1회) → Graph API `/insights` 호출
-   - 수집 지표: `followers_count`, `reach`, `impressions`, `profile_views`
+   - 수집 지표: `followers_count`(계정 필드, 스냅샷), `reach`, `accounts_engaged`, `total_interactions`
    - DB: 초기엔 Supabase(무료 티어) 또는 SQLite + 파일 커밋도 가능
+
+   > **⚠️ 메트릭 변경 공지 (2026-09-28 확인)**: 원안의 `impressions`, `profile_views`는 현재 Instagram
+   > Graph API에서 쓸 수 없다. `impressions`는 v22.0부터 폐기되어 2025-04-21부로 전 버전에서 완전
+   > 제거됨(대체: `views`, 콘텐츠 단위 지표라 계정 레벨 일별 집계와는 성격이 다름). `profile_views`는
+   > 메트릭 자체가 없어짐 — 가장 가까운 대안은 `profile_links_taps`(프로필 링크 클릭수)뿐, "프로필
+   > 조회수" 개념은 사라졌다. `followers_count`도 `/insights` 메트릭이 아니라 계정 자체 필드
+   > (`GET /{ig-user-id}?fields=followers_count`)라 매일 스냅샷을 직접 찍어서 쌓아야 시계열이 된다.
+   > 상세: `apps/insights-collector/README.md`.
 
 2. **DB 스키마 예시**
    ```sql
    CREATE TABLE daily_insights (
      date DATE PRIMARY KEY,
-     followers_count INT,
+     followers_count INT,       -- 계정 필드 스냅샷 (insights 메트릭 아님)
      reach INT,
-     impressions INT,
-     profile_views INT,
+     accounts_engaged INT,
+     total_interactions INT,
      posts_count_today INT,
      is_automated BOOLEAN  -- 자동화 게시물 여부 플래그 (전/후 비교용)
    );
@@ -160,7 +168,7 @@
 |---|---|---|
 | 소재 리서치 | 카카오 로컬 API(장소 후보) + NAVER API HUB 검색어트렌드 API(트렌드 스코어링) | 공식 API 우선, 무료 티어 존재. 네이버 지역검색은 카카오 로컬과 기능 중복이라 보류 |
 | 트렌드 감지 (선택) | pytrends (Google Trends 비공식) | 무료, 주제 선정 자동화용 |
-| LLM API | Claude Haiku 또는 Gemini Flash | 구조화 출력 작업, 저비용/무료 티어 우선 |
+| LLM API | Gemini(1순위, 무료) + Claude Haiku(폴백) | Gemini 무료 한도 소진(429)/과부하(503) 시 Haiku로 자동 전환. 상세: `_docs/llm-provider-fallback-plan.md` |
 | 프론트엔드 템플릿 | React + Vite | 컴포넌트 기반 템플릿 렌더링에 적합 |
 | 렌더링 | Playwright | 헤드리스 스크린샷 → PNG |
 | 이미지 소스 | 장소 상세페이지(카카오맵/네이버플레이스) 크롤링 + Google Places API(대안) | 실사 장소 사진 우선 사용, 크롤링 리스크 회피 시 공식 API로 대체 |
@@ -214,14 +222,16 @@ cardnews-automation/
 - [x] 카카오 로컬 API 연동 및 키워드 검색 테스트 (`apps/research-collector/src/test-kakao-local.js`) — Kakao Developers에서 REST API 키만으론 부족하고 "제품 설정 > 카카오맵" 활성화가 별도로 필요했음
 - [x] NAVER API HUB 검색어트렌드 API 연동 및 조회 테스트 (`apps/research-collector/src/test-naver-trend.js`) — 기존 데이터랩 개발자센터 방식은 2026-07-31부로 신규 신청 차단, NCP API HUB로 이관해서 발급
 - [ ] 네이버 지역검색 API 연동 — 카카오 로컬 API와 기능 중복(둘 다 상호명·주소·카테고리만 제공, 평점·리뷰 없음)이라 우선순위 낮춰 보류. 필요해지면 API HUB에서 추가 신청
-- [ ] 카카오 로컬(장소 후보) + 검색어트렌드(랭킹) 결과를 합쳐 "채택할 소재 리스트"를 뽑는 스크립트로 통합 (`apps/research-collector`에 두 테스트 스크립트를 합치는 방향)
+- [x] 카카오 로컬(장소 후보) + 검색어트렌드(랭킹) 결과를 합쳐 "채택할 소재 리스트"를 뽑는 스크립트로 통합 (`apps/research-collector/src/collect.js`, `npm run collect`)
 - [x] 레퍼런스 스크린샷 수집 및 `spec.md` 레이아웃 스펙 정리
 - [x] JSON 카드 스키마 확정 (`shared/schemas/card-news.ts`)
 - [x] LLM 프롬프트 작성 및 구조화 출력 테스트 (`apps/content-generator`, Gemini API)
 - [x] React 카드 템플릿 3종 (커버/콘텐츠/CTA) 퍼블리싱
 - [x] Playwright 렌더링 스크립트 작성 (`apps/card-renderer/scripts/render.js`)
-- [ ] 인스타 비즈니스 계정 전환 + 테스터 등록
-- [ ] Graph API Insights 수집 배치 + DB 스키마 구축
+- [x] Gemini 무료 한도 소진/과부하 시 Claude Haiku로 자동 폴백 (`apps/content-generator/src/generate.js`) — 상세: `_docs/llm-provider-fallback-plan.md`
+- [x] 인스타 비즈니스 계정 전환 + Facebook 페이지 연결 + Meta 앱 테스터/권한 등록 (`instagram_manage_insights` 포함) — 이 과정에서 겪은 트러블슈팅은 아래 참고
+- [x] Graph API Insights 연동 스모크 테스트 (`apps/insights-collector/src/test-insights.js`, `npm run test:insights`) — 계정 필드(팔로워 수) + 일별 인사이트(reach/accounts_engaged/total_interactions) 조회 확인
+- [ ] Graph API Insights 수집 배치(크론) + DB 스키마 구축 — 위 스모크 테스트 다음 단계
 - [ ] ECharts 대시보드 (전/후 비교 뷰 포함) 구축
 - [ ] 베이스라인 데이터 최소 1~2주 수집
 - [ ] 장소 상세페이지 크롤링 또는 Google Places API 이미지 자동 매칭 연동

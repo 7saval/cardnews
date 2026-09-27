@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test:kakao": "node src/test-kakao-local.js",
-    "test:naver-trend": "node src/test-naver-trend.js"
+    "test:naver-trend": "node src/test-naver-trend.js",
+    "collect": "node src/collect.js"
   },
   "dependencies": {
     "dotenv": "^17.0.0"

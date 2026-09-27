@@ -1,0 +1,22 @@
+[
+  {
+    "name": "강남 야장",
+    "kakaoQuery": "강남 야장",
+    "naverKeywords": ["야장", "루프탑"]
+  },
+  {
+    "name": "을지로 노포",
+    "kakaoQuery": "을지로 노가리",
+    "naverKeywords": ["을지로 노포", "노가리"]
+  },
+  {
+    "name": "강남 오마카세",
+    "kakaoQuery": "강남 오마카세",
+    "naverKeywords": ["오마카세"]
+  },
+  {
+    "name": "홍대 이자카야",
+    "kakaoQuery": "홍대 이자카야",
+    "naverKeywords": ["이자카야", "홍대 술집"]
+  }
+]
