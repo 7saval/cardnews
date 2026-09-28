@@ -6,9 +6,15 @@ interface CoverCardProps {
   /** \n으로 구분된 훅 카피. 줄마다 흰색/틸이 번갈아 표시된다. */
   hookLine: string;
   backgroundImageUrl?: string;
+  logoUrl?: string;
 }
 
-export function CoverCard({ sourceHandle, hookLine, backgroundImageUrl }: CoverCardProps) {
+export function CoverCard({
+  sourceHandle,
+  hookLine,
+  backgroundImageUrl,
+  logoUrl = '/logo.png',
+}: CoverCardProps) {
   const lines = hookLine.split('\n');
 
   return (
@@ -24,7 +30,9 @@ export function CoverCard({ sourceHandle, hookLine, backgroundImageUrl }: CoverC
         <span>📷</span>
         <span>{sourceHandle}</span>
       </div>
-      <div className="card-mascot-badge">LOGO</div>
+      <div className="card-mascot-badge">
+        {logoUrl ? <img src={logoUrl} alt="맛수집 로고" /> : 'LOGO'}
+      </div>
 
       <div className="cover-card__title">
         {lines.map((line, i) => (
