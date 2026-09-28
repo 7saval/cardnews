@@ -4,7 +4,8 @@ Meta Graph API로 인스타그램 비즈니스 계정의 팔로워 수·인사�
 Phase 2 담당 — 발행 자동화(Phase 4)보다 먼저 붙여서, 자동화 도입 전/후 비교를 위한
 베이스라인 데이터를 최대한 일찍부터 모으는 게 목적.
 
-**현재 상태**: API 연동 스모크 테스트까지 완료. 매일 도는 크론 배치 + DB 적재는 아직.
+**현재 상태**: API 연동 확인 완료. `npm run collect`(일일 배치) + GitHub Actions 크론
+(`.github/workflows/insights-daily.yml`, 매일 KST 00:30) 작성 완료.
 
 설계 배경은 `_docs/insta-cardnews-automation-plan.md`의 "Phase 2" 섹션 참고 —
 단, 거기 적힌 DB 스키마(`impressions`, `profile_views` 컬럼)는 **현재 API와 안 맞음**.
@@ -56,7 +57,23 @@ npm run test:insights
   - total_interactions: 0
 ```
 
-### 2. 장기 토큰으로 교환 (단기 토큰은 ~1-2시간 후 만료)
+### 2. 일일 수집 → Supabase 적재
+
+```bash
+npm run collect                        # KST 기준 어제 하루치
+npm run collect -- --date 2026-09-27   # 특정 날짜 재수집
+npm run collect -- --dry-run           # DB에 쓰지 않고 조회 결과만 출력
+```
+
+`daily_insights`에 `date` 기준 upsert하므로 같은 날짜로 재실행해도 안전하다.
+인사이트 메트릭은 `since/until`로 해당 날짜(KST 00:00~24:00) 구간을 고정해 조회하지만,
+`followers_count`는 계정 필드라 **실행 시점의 스냅샷**이다 (크론이 자정 직후에 도는 이유).
+`posts_count_today`는 `/media`의 `timestamp`로 해당 구간 게시물 수를 센다.
+
+GitHub Actions에서 돌리려면 저장소 Secrets에 `META_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID`,
+`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` 등록 필요. Actions 탭에서 수동 실행(날짜 지정)도 가능.
+
+### 3. 장기 토큰으로 교환 (단기 토큰은 ~1-2시간 후 만료)
 
 ```bash
 npm run exchange-token
@@ -81,7 +98,6 @@ npm run exchange-token
 
 ## 다음 작업
 
-- [ ] `daily_insights` DB 스키마 재설계 (위 표 반영: `impressions`→`views`, `profile_views` 제거/대체)
-- [ ] GitHub Actions 크론 배치 스크립트 (`npm run collect` 같은 형태로, 매일 계정 필드+인사이트를
-  조회해서 DB에 upsert)
+- [x] `daily_insights` DB 스키마 재설계 (위 표 반영: `impressions`→`views`, `profile_views` 제거/대체)
+- [x] GitHub Actions 크론 배치 스크립트 (`npm run collect`, 매일 계정 필드+인사이트 조회 → upsert)
 - [ ] 장기 토큰 60일 만료 대응 (알림 또는 자동 재교환)
