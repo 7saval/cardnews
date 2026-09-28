@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import './App.css';
 import { CoverCard } from './components/CoverCard';
 import { ContentCard } from './components/ContentCard';
@@ -82,10 +82,72 @@ function App() {
     return single ?? <p>알 수 없는 card 파라미터: {cardParam}</p>;
   }
 
+  return <PreviewGallery fallbackData={data} initialName={params.get('data')} />;
+}
+
+/**
+ * 개발 서버 미리보기. ?data=<이름>이면 content-generator/output/<이름>.json을
+ * vite.config.ts의 /__outputs 미들웨어로 불러와 보여주고, 없으면 샘플 데이터를 보여준다.
+ */
+function PreviewGallery({ fallbackData, initialName }: { fallbackData: CardNewsData; initialName: string | null }) {
+  const [names, setNames] = useState<string[]>([]);
+  const [selected, setSelected] = useState(initialName ?? '');
+  const [loaded, setLoaded] = useState<{ name: string; data: CardNewsData } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/__outputs')
+      .then((res) => res.json())
+      .then(setNames)
+      .catch(() => setNames([]));
+  }, []);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (selected) url.searchParams.set('data', selected);
+    else url.searchParams.delete('data');
+    window.history.replaceState(null, '', url);
+
+    if (!selected) return;
+    let cancelled = false;
+    fetch(`/__outputs/${encodeURIComponent(selected)}.json`)
+      .then(async (res) => {
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+        return body as CardNewsData;
+      })
+      .then((data) => {
+        if (cancelled) return;
+        setLoaded({ name: selected, data });
+        setError(null);
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setError(err.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
+
+  const data = selected && loaded?.name === selected ? loaded.data : fallbackData;
   const { cover, contents, cta } = buildCards(data);
 
   return (
     <div className="preview-gallery">
+      <div className="preview-toolbar">
+        <label>
+          데이터{' '}
+          <select value={selected} onChange={(e) => setSelected(e.target.value)}>
+            <option value="">(내장 샘플)</option>
+            {names.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+        {error && <span className="preview-toolbar__error">불러오기 실패: {error}</span>}
+      </div>
       <PreviewSlot label="Cover">{cover}</PreviewSlot>
       {contents.map((content, i) => (
         <PreviewSlot label={`Content ${i + 1}`} key={i}>

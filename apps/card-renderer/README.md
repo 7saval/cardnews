@@ -22,6 +22,11 @@ npm run dev
 ```
 
 `src/sampleData.ts`의 내장 샘플 데이터로 커버/콘텐츠/CTA 카드 3종을 화면에서 바로 확인할 수 있다.
+
+상단 **데이터** 드롭다운에서 `content-generator/output/`의 산출물(최신순)을 고르면 그 JSON으로 바로 바꿔서
+보여준다. URL로 직접 열어도 된다: `http://localhost:5173/?data=pipeline-test`
+(`npm run pipeline -- --name <이름>`으로 만든 결과를 PNG 렌더링 없이 빠르게 확인할 때 유용).
+산출물은 `vite.config.ts`의 개발 서버 전용 미들웨어(`/__outputs`)가 읽어서 넘겨준다.
 레이아웃을 손보거나 새 카드 타입을 만들 때 이 모드로 확인하면서 작업.
 
 ### 2. PNG로 렌더링 (실사용)
