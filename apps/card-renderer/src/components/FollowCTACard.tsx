@@ -8,9 +8,17 @@ interface FollowCTACardProps {
   hookLines?: [string, string];
   backgroundImageUrl?: string;
   imageCredit?: string;
+  logoUrl?: string;
 }
 
-export function FollowCTACard({ handle, ctaText, hookLines, backgroundImageUrl, imageCredit }: FollowCTACardProps) {
+export function FollowCTACard({
+  handle,
+  ctaText,
+  hookLines,
+  backgroundImageUrl,
+  imageCredit,
+  logoUrl = '/logo.png',
+}: FollowCTACardProps) {
   return (
     <div className="card">
       {backgroundImageUrl ? (
@@ -29,7 +37,9 @@ export function FollowCTACard({ handle, ctaText, hookLines, backgroundImageUrl, 
       )}
 
       <div className="cta-card__profile">
-        <div className="cta-card__avatar">LOGO</div>
+        <div className="cta-card__avatar">
+          {logoUrl ? <img src={logoUrl} alt="맛수집 로고" /> : 'LOGO'}
+        </div>
         <div className="cta-card__handle">{handle}</div>
         <div className="cta-card__follow-btn">팔로우</div>
       </div>

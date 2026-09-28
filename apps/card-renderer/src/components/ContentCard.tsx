@@ -9,6 +9,7 @@ interface ContentCardProps {
   address?: string;
   backgroundImageUrl?: string;
   imageCredit?: string;
+  logoUrl?: string;
 }
 
 export function ContentCard({
@@ -18,6 +19,7 @@ export function ContentCard({
   address,
   backgroundImageUrl,
   imageCredit,
+  logoUrl = '/logo.png',
 }: ContentCardProps) {
   return (
     <div className="card">
@@ -32,7 +34,9 @@ export function ContentCard({
         <span>{sourceHandle}</span>
       </div>
       <ImageCredit credit={imageCredit} />
-      <div className="card-mascot-badge">LOGO</div>
+      <div className="card-mascot-badge">
+        {logoUrl ? <img src={logoUrl} alt="맛수집 로고" /> : 'LOGO'}
+      </div>
 
       <div className="content-card__overlay">
         <div className="content-card__title">#{placeName}</div>

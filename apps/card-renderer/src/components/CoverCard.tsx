@@ -8,9 +8,16 @@ interface CoverCardProps {
   hookLine: string;
   backgroundImageUrl?: string;
   imageCredit?: string;
+  logoUrl?: string;
 }
 
-export function CoverCard({ sourceHandle, hookLine, backgroundImageUrl, imageCredit }: CoverCardProps) {
+export function CoverCard({
+  sourceHandle,
+  hookLine,
+  backgroundImageUrl,
+  imageCredit,
+  logoUrl = '/logo.png',
+}: CoverCardProps) {
   const lines = hookLine.split('\n');
 
   return (
@@ -27,7 +34,9 @@ export function CoverCard({ sourceHandle, hookLine, backgroundImageUrl, imageCre
         <span>{sourceHandle}</span>
       </div>
       <ImageCredit credit={imageCredit} />
-      <div className="card-mascot-badge">LOGO</div>
+      <div className="card-mascot-badge">
+        {logoUrl ? <img src={logoUrl} alt="맛수집 로고" /> : 'LOGO'}
+      </div>
 
       <div className="cover-card__title">
         {lines.map((line, i) => (
