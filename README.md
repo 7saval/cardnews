@@ -33,9 +33,9 @@ flowchart LR
         Publish["publisher<br/>Graph API 발행"]
     end
 
-    subgraph Phase2["Phase 2 — 미구현"]
-        IC["insights-collector<br/>일별 인사이트 수집"]
-        DB[("daily_insights DB")]
+    subgraph Phase2["Phase 2 — 수집 동작 중 / 대시보드 미구현"]
+        IC["insights-collector<br/>일별 인사이트 수집 (매일 KST 00:30)"]
+        DB[("Supabase daily_insights")]
         DASH["dashboard<br/>React + ECharts"]
         IC --> DB --> DASH
     end
@@ -49,7 +49,7 @@ flowchart LR
 | [`apps/content-generator`](apps/content-generator) | ✅ 동작 | 소재 텍스트 → LLM(Gemini 1순위, Claude Haiku 폴백)으로 카드뉴스 JSON 구조화 |
 | [`apps/card-renderer`](apps/card-renderer) | ✅ 동작 | 카드뉴스 JSON → React 컴포넌트 렌더링 → Playwright로 PNG 추출 |
 | [`apps/image-matcher`](apps/image-matcher) | ⬜ 미구현 | 장소 실사 이미지 자동 매칭 (Phase 3) |
-| [`apps/insights-collector`](apps/insights-collector) | 🟡 API 연동 완료 | 팔로워/도달 등 일별 인사이트 수집 (Phase 2) — 크론 배치·DB 적재는 미구현 |
+| [`apps/insights-collector`](apps/insights-collector) | ✅ 동작 | 팔로워/도달 등 일별 인사이트 수집 (Phase 2) — GitHub Actions 크론(매일 KST 00:30)으로 Supabase `daily_insights`에 적재 |
 | [`apps/publisher`](apps/publisher) | ⬜ 미구현 | Graph API로 인스타그램 발행 (Phase 4) |
 | `dashboard` | ⬜ 미구현 | 전/후 비교 대시보드 (Phase 2) |
 | `shared/schemas` | ✅ | 앱 간에 공유하는 카드뉴스 JSON 스키마·검증 로직 |
@@ -96,18 +96,21 @@ npm run render -- --data ../content-generator/output/result.json --out output/re
 `output/result/1-cover.png`부터 CTA 카드까지 순서대로 PNG가 저장된다. 인스타그램에는
 지금은 수동으로 업로드한다(발행 자동화는 Phase 4에서 붙임).
 
-### 한 번에 이어서 실행하고 싶다면 (bash 기준)
+### 2~3단계를 한 번에 실행 (`scripts/pipeline.js`)
+
+저장소 루트에서:
 
 ```bash
-cd apps/research-collector && npm run collect
-LATEST=$(ls -t output/*-adopted-*.txt | head -1)
-
-cd ../content-generator
-npm run generate -- --input "../research-collector/$LATEST" --handle <내 인스타 핸들> --out output/result.json
-
-cd ../card-renderer
-npm run render -- --data ../content-generator/output/result.json --out output/result
+cd apps/research-collector && npm run collect && cd ../..   # 1단계 (소재 리서치)
+npm run pipeline -- --handle <내 인스타 핸들>                  # 2단계 → 3단계
 ```
+
+- `--input` 생략 시 `apps/research-collector/output`의 **가장 최근** `*-adopted-*.txt`를 입력으로 쓴다
+  (직접 지정: `--input apps/research-collector/output/<파일>.txt`)
+- `--name <이름>`으로 산출물 이름 지정 (기본: 타임스탬프). 결과는 같은 이름으로 짝지어 저장된다:
+  - `apps/content-generator/output/<이름>.json` (+ `.meta.json`)
+  - `apps/card-renderer/output/<이름>/*.png`
+- 한 단계라도 실패하면 거기서 멈춘다. 각 앱을 자기 폴더에서 실행하므로 앱별 `.env`/`npm install`은 그대로 필요
 
 ## 문서
 

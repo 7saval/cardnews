@@ -97,7 +97,10 @@
 1. **데이터 수집 배치**
    - GitHub Actions 크론(1일 1회) → Graph API `/insights` 호출
    - 수집 지표: `followers_count`(계정 필드, 스냅샷), `reach`, `accounts_engaged`, `total_interactions`
-   - DB: 초기엔 Supabase(무료 티어) 또는 SQLite + 파일 커밋도 가능
+   - DB: 초기엔 Supabase(무료 티어) 또는 SQLite + 파일 커밋도 가능 → **Supabase로 확정 (2026-09-28)**
+   - **구현 (2026-09-28)**: `apps/insights-collector/src/collect.js`(`npm run collect`) +
+     `.github/workflows/insights-daily.yml`(매일 UTC 15:30 = KST 00:30). KST 기준 전일 00:00~24:00 구간을
+     `since/until`로 고정 조회해서 `daily_insights`에 `date` 기준 upsert
 
    > **⚠️ 메트릭 변경 공지 (2026-09-28 확인)**: 원안의 `impressions`, `profile_views`는 현재 Instagram
    > Graph API에서 쓸 수 없다. `impressions`는 v22.0부터 폐기되어 2025-04-21부로 전 버전에서 완전
@@ -107,18 +110,20 @@
    > (`GET /{ig-user-id}?fields=followers_count`)라 매일 스냅샷을 직접 찍어서 쌓아야 시계열이 된다.
    > 상세: `apps/insights-collector/README.md`.
 
-2. **DB 스키마 예시**
+2. **DB 스키마 (Supabase에 적용 완료)**
    ```sql
    CREATE TABLE daily_insights (
      date DATE PRIMARY KEY,
-     followers_count INT,       -- 계정 필드 스냅샷 (insights 메트릭 아님)
+     followers_count INT,       -- 계정 필드 스냅샷 (insights 메트릭 아님, 수집 실행 시점 값)
      reach INT,
      accounts_engaged INT,
      total_interactions INT,
      posts_count_today INT,
-     is_automated BOOLEAN  -- 자동화 게시물 여부 플래그 (전/후 비교용)
+     is_automated BOOLEAN,  -- 자동화 게시물 여부 플래그 (전/후 비교용)
+     collected_at TIMESTAMPTZ
    );
    ```
+   - RLS: 공개 읽기 허용(대시보드용), 쓰기는 `service_role`만
 
 3. **대시보드**
    - React + ECharts 조합으로 시각화 (Canvas 렌더링이라 데이터가 늘어나도 성능 부담이 적음)
@@ -231,13 +236,14 @@ cardnews-automation/
 - [x] Gemini 무료 한도 소진/과부하 시 Claude Haiku로 자동 폴백 (`apps/content-generator/src/generate.js`) — 상세: `_docs/llm-provider-fallback-plan.md`
 - [x] 인스타 비즈니스 계정 전환 + Facebook 페이지 연결 + Meta 앱 테스터/권한 등록 (`instagram_manage_insights` 포함) — 이 과정에서 겪은 트러블슈팅은 아래 참고
 - [x] Graph API Insights 연동 스모크 테스트 (`apps/insights-collector/src/test-insights.js`, `npm run test:insights`) — 계정 필드(팔로워 수) + 일별 인사이트(reach/accounts_engaged/total_interactions) 조회 확인
-- [ ] Graph API Insights 수집 배치(크론) + DB 스키마 구축 — 위 스모크 테스트 다음 단계
+- [x] Graph API Insights 수집 배치(크론) + DB 스키마 구축 (`apps/insights-collector/src/collect.js`, `.github/workflows/insights-daily.yml`, Supabase `daily_insights`) — 로컬 적재·upsert 재실행 및 GitHub Actions 수동 실행 성공 확인 (2026-09-28)
+- [ ] Meta 장기 토큰 60일 만료 대응 (현재 토큰 ~2026-11-26 만료, 알림/자동 재교환 미구현 — 만료 시 재교환 후 GitHub Secret `META_ACCESS_TOKEN` 갱신)
 - [ ] ECharts 대시보드 (전/후 비교 뷰 포함) 구축
-- [ ] 베이스라인 데이터 최소 1~2주 수집
+- [ ] 베이스라인 데이터 최소 1~2주 수집 (2026-09-29 00:30 KST 첫 스케줄 실행부터 누적)
 - [ ] 장소 상세페이지 크롤링 또는 Google Places API 이미지 자동 매칭 연동
 - [ ] Cloudflare R2 업로드 파이프라인
 - [ ] Graph API 발행 자동화 + 스케줄링
-- [ ] 전체 파이프라인을 잇는 오케스트레이션 스크립트 작성 (research-collector → content-generator → image-matcher → card-renderer → publisher, 현재는 각 앱을 CLI로 수동 연결)
+- [ ] 전체 파이프라인을 잇는 오케스트레이션 스크립트 작성 (research-collector → content-generator → image-matcher → card-renderer → publisher) — content-generator → card-renderer 구간은 `scripts/pipeline.js`(`npm run pipeline`)로 연결 완료 (2026-09-28), image-matcher/publisher는 구현되면 단계 추가
 - [ ] `is_automated` 플래그 전환 및 전/후 비교 결과 정리
 - [ ] README에 아키텍처 다이어그램 및 성과 지표 정리 (포트폴리오용)
 
