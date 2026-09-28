@@ -133,6 +133,7 @@ async function main() {
   } catch (err) {
     if (!GEMINI_RETRYABLE_STATUS.has(err.status)) throw err;
     console.warn(`\n⚠ Gemini 사용 불가(${err.status}), Claude Haiku로 전환합니다...`);
+    console.warn(`  Gemini 에러 원문: ${err.message}`);
     provider = 'haiku';
     fellBack = true;
     result = await generateWithHaiku(rawMaterial);
