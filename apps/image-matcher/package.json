@@ -1,0 +1,9 @@
+{
+  "name": "image-matcher",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "match": "node src/match.js"
+  }
+}

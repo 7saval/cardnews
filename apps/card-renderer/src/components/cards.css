@@ -24,6 +24,17 @@
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
 }
 
+.card-image-credit {
+  position: absolute;
+  top: 80px;
+  left: 32px;
+  z-index: 10;
+  font-size: 22px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
 .card-mascot-badge {
   position: absolute;
   top: 24px;

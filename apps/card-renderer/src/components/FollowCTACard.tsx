@@ -1,14 +1,16 @@
 import './cards.css';
 import './FollowCTACard.css';
+import { ImageCredit } from './ImageCredit';
 
 interface FollowCTACardProps {
   handle: string;
   ctaText: string;
   hookLines?: [string, string];
   backgroundImageUrl?: string;
+  imageCredit?: string;
 }
 
-export function FollowCTACard({ handle, ctaText, hookLines, backgroundImageUrl }: FollowCTACardProps) {
+export function FollowCTACard({ handle, ctaText, hookLines, backgroundImageUrl, imageCredit }: FollowCTACardProps) {
   return (
     <div className="card">
       {backgroundImageUrl ? (
@@ -17,6 +19,7 @@ export function FollowCTACard({ handle, ctaText, hookLines, backgroundImageUrl }
         <div className="card-placeholder-bg">[배경 이미지 자리]</div>
       )}
       <div className="cta-card__dim" />
+      <ImageCredit credit={imageCredit} />
 
       {hookLines && (
         <div className="cta-card__hook">

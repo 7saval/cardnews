@@ -9,6 +9,8 @@
  * - CardNewsCTA.hook_lines
  * - CardNewsData.source_handle, cover_image_url
  * 카드 디자인(design-reference/spec.md)을 구현하면서 실제로 필요해져 추가함.
+ * - image_credit / cover_image_credit / cta_card.image_credit
+ *   image-matcher가 허락받은 사진을 채울 때 출처(@계정 등)를 함께 넣는다. 카드에 표시됨.
  */
 
 export interface CardNewsItem {
@@ -21,6 +23,8 @@ export interface CardNewsItem {
   address?: string;
   /** 매칭된 배경 이미지 URL. 없으면 렌더러가 placeholder를 보여줌. */
   image_url?: string;
+  /** 배경 이미지 출처 표기 (예: "@shinmi_official"). */
+  image_credit?: string;
 }
 
 export interface CardNewsCTA {
@@ -29,6 +33,7 @@ export interface CardNewsCTA {
   /** CTA 카드 상단 후킹 카피 2줄 [서브, 메인]. */
   hook_lines?: [string, string];
   image_url?: string;
+  image_credit?: string;
 }
 
 export interface CardNewsData {
@@ -37,6 +42,7 @@ export interface CardNewsData {
   /** 좌상단 워터마크에 표시할 출처 계정. */
   source_handle: string;
   cover_image_url?: string;
+  cover_image_credit?: string;
   cards: CardNewsItem[];
   cta_card: CardNewsCTA;
 }

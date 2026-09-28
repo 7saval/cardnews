@@ -27,6 +27,7 @@ function buildCards(data: CardNewsData) {
       sourceHandle={data.source_handle}
       hookLine={data.hook_line}
       backgroundImageUrl={data.cover_image_url}
+      imageCredit={data.cover_image_credit}
     />
   );
 
@@ -38,6 +39,7 @@ function buildCards(data: CardNewsData) {
       caption={c.caption}
       address={c.address}
       backgroundImageUrl={c.image_url}
+      imageCredit={c.image_credit}
     />
   ));
 
@@ -47,6 +49,7 @@ function buildCards(data: CardNewsData) {
       ctaText={data.cta_card.cta_text}
       hookLines={data.cta_card.hook_lines}
       backgroundImageUrl={data.cta_card.image_url}
+      imageCredit={data.cta_card.image_credit}
     />
   );
 

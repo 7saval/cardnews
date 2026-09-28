@@ -1,5 +1,6 @@
 import './cards.css';
 import './ContentCard.css';
+import { ImageCredit } from './ImageCredit';
 
 interface ContentCardProps {
   sourceHandle: string;
@@ -7,6 +8,7 @@ interface ContentCardProps {
   caption: string;
   address?: string;
   backgroundImageUrl?: string;
+  imageCredit?: string;
 }
 
 export function ContentCard({
@@ -15,6 +17,7 @@ export function ContentCard({
   caption,
   address,
   backgroundImageUrl,
+  imageCredit,
 }: ContentCardProps) {
   return (
     <div className="card">
@@ -28,6 +31,7 @@ export function ContentCard({
         <span>📷</span>
         <span>{sourceHandle}</span>
       </div>
+      <ImageCredit credit={imageCredit} />
       <div className="card-mascot-badge">LOGO</div>
 
       <div className="content-card__overlay">

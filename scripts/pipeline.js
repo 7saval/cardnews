@@ -1,4 +1,5 @@
-// content-generator(카피 구조화) → card-renderer(PNG 렌더링)를 한 번에 잇는 오케스트레이션 CLI.
+// content-generator(카피 구조화) → image-matcher(허락받은 사진 연결) → card-renderer(PNG 렌더링)를
+// 한 번에 잇는 오케스트레이션 CLI.
 //
 // 각 앱은 자기 폴더의 .env / node_modules를 쓰는 독립 CLI라서, import로 합치지 않고
 // 앱 폴더를 cwd로 해서 자식 프로세스로 실행한다. npm 대신 node로 스크립트를 직접 띄우는 건
@@ -23,6 +24,7 @@ const repoRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 const apps = {
   research: join(repoRoot, 'apps/research-collector'),
   generator: join(repoRoot, 'apps/content-generator'),
+  matcher: join(repoRoot, 'apps/image-matcher'),
   renderer: join(repoRoot, 'apps/card-renderer'),
 };
 
@@ -82,13 +84,16 @@ async function main() {
   console.log(`입력: ${inputPath}`);
   console.log(`산출물 이름: ${name}`);
 
-  await runStep('1/2 카피 구조화 (content-generator)', apps.generator, 'src/generate.js', [
+  await runStep('1/3 카피 구조화 (content-generator)', apps.generator, 'src/generate.js', [
     '--input', inputPath,
     '--handle', args.handle,
     '--out', jsonPath,
   ]);
 
-  await runStep('2/2 카드 렌더링 (card-renderer)', apps.renderer, 'scripts/render.js', [
+  // 사진이 하나도 없어도 실패하지 않고 placeholder로 진행된다
+  await runStep('2/3 이미지 매칭 (image-matcher)', apps.matcher, 'src/match.js', ['--data', jsonPath]);
+
+  await runStep('3/3 카드 렌더링 (card-renderer)', apps.renderer, 'scripts/render.js', [
     '--data', jsonPath,
     '--out', pngDir,
   ]);

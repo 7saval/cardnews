@@ -1,14 +1,16 @@
 import './cards.css';
 import './CoverCard.css';
+import { ImageCredit } from './ImageCredit';
 
 interface CoverCardProps {
   sourceHandle: string;
   /** \n으로 구분된 훅 카피. 줄마다 흰색/틸이 번갈아 표시된다. */
   hookLine: string;
   backgroundImageUrl?: string;
+  imageCredit?: string;
 }
 
-export function CoverCard({ sourceHandle, hookLine, backgroundImageUrl }: CoverCardProps) {
+export function CoverCard({ sourceHandle, hookLine, backgroundImageUrl, imageCredit }: CoverCardProps) {
   const lines = hookLine.split('\n');
 
   return (
@@ -24,6 +26,7 @@ export function CoverCard({ sourceHandle, hookLine, backgroundImageUrl }: CoverC
         <span>📷</span>
         <span>{sourceHandle}</span>
       </div>
+      <ImageCredit credit={imageCredit} />
       <div className="card-mascot-badge">LOGO</div>
 
       <div className="cover-card__title">

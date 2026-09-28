@@ -8,9 +8,9 @@
 
 ## 아키텍처
 
-`apps/` 아래 각 프로젝트는 **독립적인 앱**이다 — 한 단계의 출력(텍스트/JSON)을 다음 단계의
-입력으로 사람이 CLI로 직접 넘겨야 한다. 아직 이 흐름을 자동으로 이어주는 오케스트레이션은
-없다 (아래 "지금 할 수 있는 것" 참고).
+`apps/` 아래 각 프로젝트는 **독립적인 앱**이다 — 한 단계의 출력(텍스트/JSON)이 다음 단계의
+입력이 된다. content-generator → image-matcher → card-renderer 구간은 루트의 `npm run pipeline`이
+한 번에 이어준다 (아래 "지금 할 수 있는 것" 참고).
 
 ```mermaid
 flowchart LR
@@ -24,10 +24,11 @@ flowchart LR
 
     CR -->|"PNG x N (1080x1350)"| Publish
 
-    subgraph Phase3["Phase 3 — 미구현"]
-        IM["image-matcher<br/>장소 실사 이미지 매칭"]
+    subgraph Phase3["Phase 3 — 동작 (사진은 사람이 허락받아 넣음)"]
+        IM["image-matcher<br/>허락받은 사진 → image_url/출처"]
     end
-    IM -.->|"image_url 채움"| CG
+    CG -->|"*.json"| IM
+    IM -->|"image_url 채운 *.json"| CR
 
     subgraph Phase4["Phase 4 — 미구현"]
         Publish["publisher<br/>Graph API 발행"]
@@ -48,7 +49,7 @@ flowchart LR
 | [`apps/research-collector`](apps/research-collector) | ✅ 동작 | 카카오 로컬 API(장소 후보) + 네이버 검색어트렌드(랭킹)를 합쳐 소재 텍스트 생성 |
 | [`apps/content-generator`](apps/content-generator) | ✅ 동작 | 소재 텍스트 → LLM(Gemini 1순위, Claude Haiku 폴백)으로 카드뉴스 JSON 구조화 |
 | [`apps/card-renderer`](apps/card-renderer) | ✅ 동작 | 카드뉴스 JSON → React 컴포넌트 렌더링 → Playwright로 PNG 추출 |
-| [`apps/image-matcher`](apps/image-matcher) | ⬜ 미구현 | 장소 실사 이미지 자동 매칭 (Phase 3) |
+| [`apps/image-matcher`](apps/image-matcher) | ✅ 동작 | 허락받은 장소 사진(`images/<장소명>/`)을 카드 배경 + 출처 표기로 연결 (Phase 3) |
 | [`apps/insights-collector`](apps/insights-collector) | ✅ 동작 | 팔로워/도달 등 일별 인사이트 수집 (Phase 2) — GitHub Actions 크론(매일 KST 00:30)으로 Supabase `daily_insights`에 적재 |
 | [`apps/publisher`](apps/publisher) | ⬜ 미구현 | Graph API로 인스타그램 발행 (Phase 4) |
 | `dashboard` | ⬜ 미구현 | 전/후 비교 대시보드 (Phase 2) |
@@ -96,14 +97,19 @@ npm run render -- --data ../content-generator/output/result.json --out output/re
 `output/result/1-cover.png`부터 CTA 카드까지 순서대로 PNG가 저장된다. 인스타그램에는
 지금은 수동으로 업로드한다(발행 자동화는 Phase 4에서 붙임).
 
-### 2~3단계를 한 번에 실행 (`scripts/pipeline.js`)
+### 카피 생성 → 사진 매칭 → 렌더링을 한 번에 실행 (`scripts/pipeline.js`)
 
 저장소 루트에서:
 
 ```bash
 cd apps/research-collector && npm run collect && cd ../..   # 1단계 (소재 리서치)
-npm run pipeline -- --handle <내 인스타 핸들>                  # 2단계 → 3단계
+npm run pipeline -- --handle <내 인스타 핸들>                  # 카피 생성 → 사진 매칭 → 렌더링
 ```
+
+- 사진 매칭(`apps/image-matcher`)은 사람이 허락받아 `images/<장소명>/`에 넣어둔 사진만 쓴다. 사진이
+  없으면 placeholder 배경으로 진행된다. 사진을 나중에 넣었다면 LLM을 다시 부르지 말고
+  `image-matcher`의 `npm run match` → `card-renderer`의 `npm run render`만 다시 돌리면 된다
+  (상세: `apps/image-matcher/README.md`)
 
 - `--input` 생략 시 `apps/research-collector/output`의 **가장 최근** `*-adopted-*.txt`를 입력으로 쓴다
   (직접 지정: `--input apps/research-collector/output/<파일>.txt`)
