@@ -49,7 +49,7 @@ flowchart LR
 | [`apps/research-collector`](apps/research-collector) | ✅ 동작 | 카카오 로컬 API(장소 후보) + 네이버 검색어트렌드(랭킹)를 합쳐 소재 텍스트 생성 |
 | [`apps/content-generator`](apps/content-generator) | ✅ 동작 | 소재 텍스트 → LLM(Gemini 1순위, Claude Haiku 폴백)으로 카드뉴스 JSON 구조화 |
 | [`apps/card-renderer`](apps/card-renderer) | ✅ 동작 | 카드뉴스 JSON → React 컴포넌트 렌더링 → Playwright로 PNG 추출 |
-| [`apps/image-matcher`](apps/image-matcher) | ✅ 동작 | 허락받은 장소 사진(`images/<장소명>/`)을 카드 배경 + 출처 표기로 연결 (Phase 3) |
+| [`apps/image-matcher`](apps/image-matcher) | ✅ 동작 | 허락받은 가게 사진(`images/places/<가게>/`)을 카드 배경 + 출처 표기로 연결, 허락 요청 대상(가게 인스타/홈페이지) 찾기 (Phase 3) |
 | [`apps/insights-collector`](apps/insights-collector) | ✅ 동작 | 팔로워/도달 등 일별 인사이트 수집 (Phase 2) — GitHub Actions 크론(매일 KST 00:30)으로 Supabase `daily_insights`에 적재 |
 | [`apps/publisher`](apps/publisher) | ⬜ 미구현 | Graph API로 인스타그램 발행 (Phase 4) |
 | `dashboard` | ⬜ 미구현 | 전/후 비교 대시보드 (Phase 2) |
@@ -106,7 +106,7 @@ cd apps/research-collector && npm run collect && cd ../..   # 1단계 (소재 �
 npm run pipeline -- --handle <내 인스타 핸들>                  # 카피 생성 → 사진 매칭 → 렌더링
 ```
 
-- 사진 매칭(`apps/image-matcher`)은 사람이 허락받아 `images/<장소명>/`에 넣어둔 사진만 쓴다. 사진이
+- 사진 매칭(`apps/image-matcher`)은 사람이 허락받아 `images/places/<가게>/`에 넣어둔 사진만 쓴다 (가게 단위라 여러 주제에서 재사용, 커버는 주제별, CTA는 공통). 사진이
   없으면 placeholder 배경으로 진행된다. 사진을 나중에 넣었다면 LLM을 다시 부르지 말고
   `image-matcher`의 `npm run match` → `card-renderer`의 `npm run render`만 다시 돌리면 된다
   (상세: `apps/image-matcher/README.md`)

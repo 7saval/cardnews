@@ -147,9 +147,11 @@
 
 **전략 (수정안)**: 사진 확보는 사람이, 연결은 자동으로.
 
-1. **가게 공식 채널 찾기 (자동화 예정)**: 장소명+주소로 가게 공식 인스타/홈페이지를 찾아 허락 요청 대상 목록을 만든다. NAVER API HUB 검색 API(지역/웹문서/블로그) + `robots.txt`를 지키는 홈페이지 크롤러로 구현 (학습 목적 겸) — 상세: `_docs/channel-finder-plan.md`
+1. **가게 공식 채널 찾기 (구현 완료, 2026-09-30)**: 장소명+주소로 가게 공식 인스타/홈페이지를 찾아 허락 요청 대상 목록을 만든다. NAVER API HUB 검색 API(지역/웹문서/블로그) + `robots.txt`를 지키는 홈페이지 크롤러로 구현 (학습 목적 겸) — 상세: `_docs/channel-finder-plan.md`
 2. **사용 허락 요청 (사람)**: DM으로 카드뉴스 소개용 사진 사용 허락. 출처 태그(@가게계정) 필수 표기 조건. 또는 직접 방문 촬영
-3. **카드 반영 (자동, `apps/image-matcher`)**: 허락받은 사진을 `images/<장소명>/` + `credit.txt`(출처)로 넣으면 카드 JSON의 `image_url`/`image_credit`을 채움. 출처가 비어 있으면 사용하지 않음. 사진 없는 장소는 placeholder 배경으로 진행
+3. **카드 반영 (자동, `apps/image-matcher`)**: 허락받은 사진을 `images/places/<가게>/` + `credit.txt`(출처)로 넣으면 카드 JSON의 `image_url`/`image_credit`을 채움. 출처가 비어 있으면 사용하지 않음. 사진 없는 장소는 placeholder 배경으로 진행
+   - 폴더 구조(2026-10-01 확정): 가게 사진은 **가게 단위**(`places/`, 허락이 가게별이라 주제 간 재사용), 커버는 **주제별**(`topics/<series_title>/_cover/`), CTA는 **맛수집 공통 배경**(`_cta/`)
+   - 동명 가게 방지: `--init`이 `place.json`에 주소를 기록하고 매칭 때 카드 주소와 도로명 기준으로 대조
 
 **완료 기준**: 허락받은 사진을 폴더에 넣기만 하면 출처 표기와 함께 카드에 자동 반영되고, 사진이 없어도 파이프라인이 끝까지 동작
 
@@ -248,7 +250,7 @@ cardnews-automation/
 - [ ] ECharts 대시보드 (전/후 비교 뷰 포함) 구축
 - [ ] 베이스라인 데이터 최소 1~2주 수집 (2026-09-29 00:30 KST 첫 스케줄 실행부터 누적)
 - [x] ~~장소 상세페이지 크롤링 또는 Google Places API 이미지 자동 매칭 연동~~ → 약관/정책상 불가로 폐기, "허락받은 사진 폴더 → 카드 반영"으로 대체 (`apps/image-matcher`, 출처 표기 `image_credit` 스키마·렌더러 반영, 파이프라인 2/3단계로 연결) (2026-09-28)
-- [ ] 가게 공식 채널(인스타/홈페이지) 후보 찾기 자동화 — `robots.txt` 준수 크롤러
+- [x] 가게 공식 채널(인스타/홈페이지) 후보 찾기 자동화 — `apps/image-matcher/src/find-channels.js`(`npm run find-channels`), NAVER API HUB 지역검색 + `robots.txt` 준수 홈페이지 크롤러, 못 찾은 곳은 수동 확인 링크. 강남 야장 기준 자동 탐지 2/8 (2026-09-30) — 상세: `_docs/channel-finder-plan.md`
 - [ ] Cloudflare R2 업로드 파이프라인
 - [ ] Graph API 발행 자동화 + 스케줄링
 - [ ] 전체 파이프라인을 잇는 오케스트레이션 스크립트 작성 (research-collector → content-generator → image-matcher → card-renderer → publisher) — content-generator → image-matcher → card-renderer 구간은 `scripts/pipeline.js`(`npm run pipeline`)로 연결 완료 (2026-09-28), publisher는 구현되면 단계 추가

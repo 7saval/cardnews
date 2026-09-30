@@ -4,6 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "match": "node src/match.js"
+    "match": "node src/match.js",
+    "find-channels": "node src/find-channels.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2"
   }
 }
