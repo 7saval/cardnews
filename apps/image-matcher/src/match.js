@@ -10,7 +10,7 @@
 //     ├── credit.txt              첫 줄이 출처 (예: @shinmi_official, 직접 촬영이면 내 계정)
 //     └── place.json              --init이 기록하는 가게 이름·주소. 동명 다른 가게와 구분하는 데 씀
 //   images/topics/<주제>/_cover/  주제별 커버 (<주제> = 카드 JSON의 series_title). 없으면 첫 매칭 가게 사진
-//   images/_cta/                  맛수집 공통 CTA 배경 (주제와 무관)
+//   images/_cta/                  맛수집 공통 CTA 배경 (주제와 무관). 자체 제작이면 credit.txt를 비워도 사용(출처 표기 숨김)
 //
 // 사용법:
 //   npm run match -- --data ../content-generator/output/pipeline-test.json --init   # 빈 폴더 준비
@@ -59,14 +59,17 @@ function listPlaceFolders(placesDir) {
     .map((d) => ({ name: d.name, address: readJson(join(placesDir, d.name, 'place.json'))?.address ?? null }));
 }
 
-/** 사진 + 출처가 모두 있어야 사용. relPath는 images 기준 경로 조각 배열. */
-function lookup(imagesDir, relPath) {
+/**
+ * 사진 + 출처가 모두 있어야 사용. relPath는 images 기준 경로 조각 배열.
+ * creditOptional: 맛수집 자체 제작 이미지처럼 표기할 출처가 없는 경우 — 출처 없이 사용, 있으면 표기.
+ */
+function lookup(imagesDir, relPath, { creditOptional = false } = {}) {
   const dir = join(imagesDir, ...relPath);
   if (!existsSync(dir)) return { reason: '폴더 없음' };
   const image = readdirSync(dir).filter((f) => IMAGE_EXTS.has(extname(f).toLowerCase())).sort()[0];
   if (!image) return { reason: '사진 없음' };
   const credit = readTextFirstLine(join(dir, 'credit.txt'));
-  if (!credit) return { reason: 'credit.txt 비어 있음 → 사용 안 함' };
+  if (!credit && !creditOptional) return { reason: 'credit.txt 비어 있음 → 사용 안 함' };
   const url = `/__images/${[...relPath, image].map(encodeURIComponent).join('/')}`;
   return { url, credit, file: [...relPath, image].join('/') };
 }
@@ -143,10 +146,11 @@ function main() {
   data.cover_image_credit = coverSource?.credit;
   console.log(`  ${coverSource ? '✔' : '-'} 커버: ${cover.url ? cover.file : firstMatch ? '첫 매칭 가게 사진 사용' : `사진 없음 (topics/${topic}/_cover/)`}`);
 
-  const cta = lookup(args.images, ['_cta']);
+  // CTA는 맛수집 브랜드 배경이라 출처 생략 가능. 스톡 이미지 등 표기가 필요하면 credit.txt에 적는다.
+  const cta = lookup(args.images, ['_cta'], { creditOptional: true });
   data.cta_card.image_url = cta.url;
   data.cta_card.image_credit = cta.credit;
-  console.log(`  ${cta.url ? '✔' : '-'} CTA: ${cta.url ? cta.file : `${cta.reason} (_cta/)`}`);
+  console.log(`  ${cta.url ? '✔' : '-'} CTA: ${cta.url ? cta.file :`${cta.reason} (_cta/)`}`);
 
   writeFileSync(dataPath, JSON.stringify(data, null, 2), 'utf-8');
   console.log(`\n✔ 장소 ${data.cards.length}곳 중 ${matched}곳 매칭 → ${dataPath} 갱신`);
