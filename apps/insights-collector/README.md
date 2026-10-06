@@ -51,7 +51,7 @@ npm run test:insights
 2. 일별 인사이트 메트릭 (`reach`, `accounts_engaged`, `total_interactions`)
 
 ```
-✔ @matsoozip | 팔로워 0명 | 게시물 0개
+✔ @hotsoozip | 팔로워 0명 | 게시물 0개
   - reach: 0
   - accounts_engaged: 0
   - total_interactions: 0

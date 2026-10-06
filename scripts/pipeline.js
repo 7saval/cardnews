@@ -6,10 +6,10 @@
 // Windows에서 npm.cmd 실행에 셸이 필요해지고 한글/공백 경로 인자 quoting이 꼬이는 걸 피하기 위함.
 //
 // 사용법 (저장소 루트에서):
-//   npm run pipeline -- --handle matsoozip
+//   npm run pipeline -- --handle hotsoozip
 //     → research-collector/output의 가장 최근 *-adopted-*.txt를 입력으로 사용
-//   npm run pipeline -- --handle matsoozip --input apps/research-collector/output/xxx-adopted-1-강남-야장.txt
-//   npm run pipeline -- --handle matsoozip --name gangnam-yajang   # 산출물 이름 지정 (기본: 타임스탬프)
+//   npm run pipeline -- --handle hotsoozip --input apps/research-collector/output/xxx-adopted-1-강남-야장.txt
+//   npm run pipeline -- --handle hotsoozip --name gangnam-yajang   # 산출물 이름 지정 (기본: 타임스탬프)
 //
 // 산출물 (같은 이름으로 짝지어짐):
 //   apps/content-generator/output/<name>.json, <name>.meta.json
@@ -69,7 +69,7 @@ function runStep(label, cwd, script, scriptArgs) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.handle) {
-    throw new Error('--handle <계정 핸들>이 필요합니다. 예: npm run pipeline -- --handle matsoozip');
+    throw new Error('--handle <계정 핸들>이 필요합니다. 예: npm run pipeline -- --handle hotsoozip');
   }
 
   const inputPath = args.input ? resolve(process.cwd(), args.input) : findLatestAdopted();

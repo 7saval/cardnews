@@ -28,7 +28,7 @@ import {
 } from './lib/extract.js';
 
 const appRoot = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
-const HANDLE = 'matsoozip';
+const HANDLE = 'hotsoozip';
 
 function parseArgs(argv) {
   const args = { data: null };
@@ -168,7 +168,7 @@ function toMarkdown(title, places) {
     '',
     '## DM 템플릿',
     '',
-    `> 안녕하세요, 맛집 카드뉴스 계정 @${HANDLE} 입니다. 이번에 <주제> 카드뉴스에 <가게명>을 소개하고 싶은데,`,
+    `> 안녕하세요, 카드뉴스 계정 @${HANDLE} 입니다. 이번에 <주제> 카드뉴스에 <가게명>을 소개하고 싶은데,`,
     '> 계정에 올려주신 사진 1장을 사용해도 될까요? 카드에 @<가게계정> 출처를 표기하고 게시 후 링크도 공유드리겠습니다.',
     '',
     '허락받으면: `npm run match -- --data <카드 JSON> --init` → `images/places/<가게>/`에 사진 + `credit.txt`에 출처 → `npm run match -- --data <카드 JSON>`',

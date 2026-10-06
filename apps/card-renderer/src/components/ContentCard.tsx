@@ -35,7 +35,7 @@ export function ContentCard({
       </div>
       <ImageCredit credit={imageCredit} />
       <div className="card-mascot-badge">
-        {logoUrl ? <img src={logoUrl} alt="맛수집 로고" /> : 'LOGO'}
+        {logoUrl ? <img src={logoUrl} alt="핫수집 로고" /> : 'LOGO'}
       </div>
 
       <div className="content-card__overlay">

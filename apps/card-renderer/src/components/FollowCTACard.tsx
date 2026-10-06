@@ -38,7 +38,7 @@ export function FollowCTACard({
 
       <div className="cta-card__profile">
         <div className="cta-card__avatar">
-          {logoUrl ? <img src={logoUrl} alt="맛수집 로고" /> : 'LOGO'}
+          {logoUrl ? <img src={logoUrl} alt="핫수집 로고" /> : 'LOGO'}
         </div>
         <div className="cta-card__handle">{handle}</div>
         <div className="cta-card__follow-btn">팔로우</div>
