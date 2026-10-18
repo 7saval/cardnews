@@ -1,5 +1,9 @@
-// 리서치 원본 텍스트를 LLM에 넣어 shared/schemas/card-news.ts 스키마에 맞는
-// 카드뉴스 JSON을 뽑아내는 CLI.
+// 혜택 수집 결과(shared/schemas/benefit.ts)를 LLM에 넣어 카피를 만들고, 수집 원문의 사실 필드와
+// 합쳐 shared/schemas/card-news.ts 스키마의 카드뉴스 JSON을 만드는 CLI.
+//
+// 흐름: LLM 카피 생성 → assemble(사실 필드 주입) → 스키마 검증 → fact-check(원문 대조)
+//   fact-check에 실패하면 문제 목록을 넣어 1회 재생성하고, 그래도 실패하면 <out>.failed.json을
+//   남기고 실패한다 — 틀린 정보를 내보내는 것보다 낫다. (_docs/topic-pivot-benefits-plan.md §6.3)
 //
 // Gemini(1순위, 무료)가 429(할당량 소진)/503(과부하)으로 재시도까지 실패하면
 // Claude Haiku(폴백)로 자동 전환한다. 그 외 에러(스키마 검증 실패, 인증 오류 등)는
@@ -7,8 +11,8 @@
 // 배경: _docs/llm-provider-fallback-plan.md
 //
 // 사용법:
-//   npm run generate -- --handle zinoo_travel
-//   npm run generate -- --input sample-input.txt --handle zinoo_travel --out output/test.json
+//   npm run generate -- --handle hotsoozip
+//   npm run generate -- --input ../benefit-collector/output/xxx-adopted.json --handle hotsoozip --out output/test.json
 
 import 'dotenv/config';
 import { GoogleGenAI } from '@google/genai';
@@ -16,17 +20,34 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
-import { SYSTEM_PROMPT, CARD_NEWS_RESPONSE_SCHEMA, CARD_NEWS_ZOD_SCHEMA } from './prompt.js';
+import {
+  SYSTEM_PROMPT,
+  CARD_NEWS_RESPONSE_SCHEMA,
+  CARD_NEWS_ZOD_SCHEMA,
+  buildUserMessage,
+  buildRetryMessage,
+} from './prompt.js';
+import { assembleCardNews } from './assemble.js';
+import { checkFacts } from './fact-check.js';
 import { assertValidCardNewsData } from '../../../shared/schemas/validate-card-news.js';
+import { assertValidCollectedBenefits } from '../../../shared/schemas/validate-benefits.js';
+
+// 입력을 생략하면 실제 보조금24 데이터로 만든 샘플을 쓴다
+const DEFAULT_INPUT = '../../shared/schemas/collected-benefits.example.json';
 
 function parseArgs(argv) {
-  const args = { input: 'sample-input.txt', handle: null, out: null };
+  const args = { input: DEFAULT_INPUT, handle: null, out: null, today: null };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--input') args.input = argv[++i];
     else if (argv[i] === '--handle') args.handle = argv[++i];
     else if (argv[i] === '--out') args.out = argv[++i];
+    else if (argv[i] === '--today') args.today = argv[++i];
   }
   return args;
+}
+
+function todayKst() {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 // 프로바이더별 "재시도해볼 만한" 상태 코드. Gemini 429/503과 Anthropic
@@ -115,61 +136,101 @@ async function generateWithHaiku(rawMaterial) {
   return { text: JSON.stringify(response.parsed_output), model };
 }
 
-async function main() {
-  const args = parseArgs(process.argv.slice(2));
-
-  if (!args.handle) {
-    throw new Error('--handle <계정 핸들>이 필요합니다. 예: npm run generate -- --handle zinoo_travel');
-  }
-
-  const inputPath = resolve(process.cwd(), args.input);
-  const rawMaterial = readFileSync(inputPath, 'utf-8');
-
+/** Gemini → (429/503이면) Haiku 순서로 카피를 받아 JSON으로 파싱한다 */
+async function generateCopy(userMessage) {
   let provider = 'gemini';
   let fellBack = false;
   let result;
   try {
-    result = await generateWithGemini(rawMaterial);
+    result = await generateWithGemini(userMessage);
   } catch (err) {
     if (!GEMINI_RETRYABLE_STATUS.has(err.status)) throw err;
     console.warn(`\n⚠ Gemini 사용 불가(${err.status}), Claude Haiku로 전환합니다...`);
     console.warn(`  Gemini 에러 원문: ${err.message}`);
     provider = 'haiku';
     fellBack = true;
-    result = await generateWithHaiku(rawMaterial);
+    result = await generateWithHaiku(userMessage);
   }
 
-  let data;
   try {
-    data = JSON.parse(result.text);
+    return { copy: JSON.parse(result.text), provider, model: result.model, fellBack };
   } catch (err) {
     throw new Error(`${provider} 응답이 JSON으로 파싱되지 않습니다: ${err.message}\n응답 원문:\n${result.text}`);
   }
+}
 
-  // source_handle / cta_card.handle은 LLM이 만드는 값이 아니라 우리 계정 정보라 여기서 주입한다.
-  data.source_handle = args.handle;
-  data.cta_card.handle = args.handle;
-
+/** 카피를 원문과 합치고 검증한다. errors가 비어 있으면 그대로 내보내도 된다 */
+function assembleAndCheck(copy, collected, { handle, today, provider }) {
+  const { data, errors } = assembleCardNews(copy, collected, { handle, today });
+  // 카드가 빠지거나 중복이면 fact-check까지 갈 필요 없이 다시 만들어야 한다
+  if (errors.length > 0) return { data, errors };
   assertValidCardNewsData(data, `${provider} 응답`);
+  return { data, errors: checkFacts(data, collected, { today }).errors };
+}
+
+function printErrors(errors) {
+  for (const e of errors) {
+    console.warn(`  - ${e.source_id ? `[${e.source_id}] ` : '[회차] '}${e.field}: ${e.message}`);
+  }
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+
+  if (!args.handle) {
+    throw new Error('--handle <계정 핸들>이 필요합니다. 예: npm run generate -- --handle hotsoozip');
+  }
+
+  const inputPath = resolve(process.cwd(), args.input);
+  const collected = JSON.parse(readFileSync(inputPath, 'utf-8'));
+  assertValidCollectedBenefits(collected, inputPath);
+  const today = args.today ?? todayKst();
+  const options = { handle: args.handle, today };
 
   const outPath = resolve(
     process.cwd(),
     args.out ?? `output/${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
   );
   mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, JSON.stringify(data, null, 2), 'utf-8');
 
-  // 어느 프로바이더가 실제로 생성했는지는 card-news.ts 스키마를 건드리지 않고
+  const attempts = [];
+  let gen = await generateCopy(buildUserMessage(collected));
+  let { data, errors } = assembleAndCheck(gen.copy, collected, { ...options, provider: gen.provider });
+  attempts.push({ provider: gen.provider, model: gen.model, fellBack: gen.fellBack, errors });
+
+  if (errors.length > 0) {
+    console.warn(`\n⚠ 검증 실패 ${errors.length}건, 문제 목록을 넣어 1회 재생성합니다:`);
+    printErrors(errors);
+    gen = await generateCopy(buildRetryMessage(collected, gen.copy, errors));
+    ({ data, errors } = assembleAndCheck(gen.copy, collected, { ...options, provider: gen.provider }));
+    attempts.push({ provider: gen.provider, model: gen.model, fellBack: gen.fellBack, errors });
+  }
+
+  // 어느 프로바이더가 생성했고 검증을 몇 번 거쳤는지는 card-news.ts 스키마를 건드리지 않고
   // 결과 파일 옆 사이드카 메타로만 남긴다 (card-renderer는 이 파일을 몰라도 됨).
-  const metaPath = outPath.replace(/\.json$/, '.meta.json');
-  writeFileSync(
-    metaPath,
-    JSON.stringify({ provider, model: result.model, fellBack, generatedAt: new Date().toISOString() }, null, 2),
-    'utf-8',
-  );
+  const meta = {
+    provider: gen.provider,
+    model: gen.model,
+    fellBack: gen.fellBack,
+    generatedAt: new Date().toISOString(),
+    input: inputPath,
+    factCheck: { passed: errors.length === 0, attempts },
+  };
+
+  if (errors.length > 0) {
+    const failedPath = outPath.replace(/\.json$/, '.failed.json');
+    writeFileSync(failedPath, JSON.stringify({ errors, data, meta }, null, 2), 'utf-8');
+    console.error('\n재생성 후에도 검증에 실패했습니다:');
+    printErrors(errors);
+    throw new Error(`틀린 정보를 내보내지 않도록 중단합니다. 확인용 결과: ${failedPath}`);
+  }
+
+  writeFileSync(outPath, JSON.stringify(data, null, 2), 'utf-8');
+  writeFileSync(outPath.replace(/\.json$/, '.meta.json'), JSON.stringify(meta, null, 2), 'utf-8');
 
   console.log(`\n✔ 카드 ${data.cards.length}개짜리 카드뉴스 JSON을 생성했습니다: ${outPath}`);
-  console.log(`  provider: ${provider}${fellBack ? ' (Gemini 폴백)' : ''} / model: ${result.model}`);
+  console.log(`  provider: ${gen.provider}${gen.fellBack ? ' (Gemini 폴백)' : ''} / model: ${gen.model}`);
+  console.log(`  fact-check: 통과 (${attempts.length}회 생성)`);
   console.log(`  series_title: ${data.series_title}`);
 }
 

@@ -258,7 +258,7 @@ district는 null), `region`(district 시리즈의 자치구, 나머지는 null),
 |---|---|---|
 | Phase 0 | API 조사 (§3) | ✅ 2026-10-18 보조금24 확정, 결과는 §3.1 |
 | Phase A | 스키마 + benefit-collector | `npm run collect`가 새 스키마의 사실 필드가 채워진 JSON을 낸다. 선별·중복 제거 단위 테스트 통과 |
-| Phase B | content-generator + 검증 | 실제 API 데이터로 카피 생성, 일부러 틀린 숫자를 넣은 테스트에서 검증이 실패한다 |
+| Phase B | content-generator + 검증 | ✅ 2026-10-18 실제 보조금24 데이터 5건으로 카피 생성·검증 통과, 틀린 숫자 테스트 실패 확인 (`npm test` 24개) |
 | Phase C | card-renderer 재설계 | 실제 데이터 1건을 PNG로 렌더, 긴 정책명·긴 지원 내용에서 글자가 넘치지 않는다 |
 | Phase D | pipeline + 스케줄 | `npm run pipeline -- --handle hotsoozip --collect` 한 번으로 PNG까지 나오고, GitHub Actions 수동 실행 성공 |
 | Phase E | 문서 정리 | README와 계획서가 새 주제 기준, 저장소 검색에서 실행 경로에 "맛집"이 남지 않는다 |
