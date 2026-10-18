@@ -1,0 +1,12 @@
+{
+  "name": "benefit-collector",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test:gov24": "node src/test-gov24.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.0.0"
+  }
+}
