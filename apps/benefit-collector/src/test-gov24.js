@@ -14,15 +14,14 @@
 //   npm run test:gov24 -- --today 2026-10-20
 
 import 'dotenv/config';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { fetchAll } from './lib/gov24.js';
+import { loadOperation } from './lib/gov24.js';
 import { classifyPeriod } from './lib/period.js';
 
 const appRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const rawDir = join(appRoot, 'output', 'raw');
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 const REQUIRED_FIELDS = ['서비스명', '지원내용', '신청기한', '지원대상', '상세조회URL', '소관기관명'];
 // 청년: 대상 나이 범위가 19~34세와 겹치고, 상한이 39세 이하인 서비스 (전 연령 대상은 제외)
@@ -46,25 +45,6 @@ function addDays(iso, days) {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
-}
-
-async function loadOperation(operation, refresh) {
-  const file = join(rawDir, `gov24-${operation}.json`);
-  if (!refresh) {
-    const info = await stat(file).catch(() => null);
-    if (info && Date.now() - info.mtimeMs < CACHE_TTL_MS) {
-      console.log(`  ${operation}: 캐시 사용 (${file})`);
-      return JSON.parse(await readFile(file, 'utf8'));
-    }
-  }
-  const rows = await fetchAll(operation, {
-    onPage: ({ page, fetched, total }) =>
-      process.stdout.write(`\r  ${operation}: ${page}페이지, ${fetched}/${total}건`),
-  });
-  process.stdout.write('\n');
-  await mkdir(rawDir, { recursive: true });
-  await writeFile(file, JSON.stringify(rows));
-  return rows;
 }
 
 const isFilled = (v) => v != null && String(v).trim() !== '';
@@ -115,8 +95,8 @@ async function main() {
   const windowTo = addDays(today, WINDOW.to);
 
   console.log('보조금24 원본 데이터 로드');
-  const list = await loadOperation('serviceList', args.refresh);
-  const conditions = await loadOperation('supportConditions', args.refresh);
+  const list = await loadOperation('serviceList', { rawDir, refresh: args.refresh });
+  const conditions = await loadOperation('supportConditions', { rawDir, refresh: args.refresh });
   const condById = new Map(conditions.map((c) => [c.서비스ID, c]));
   const total = list.length;
   console.log(`\n기준일 ${today} · 전체 ${total}건 · 지원조건 ${conditions.length}건`);

@@ -6,6 +6,9 @@
 //   serviceDetail     — 서비스 상세 (구비서류, 온라인신청사이트URL 등)
 //   supportConditions — 지원조건 코드 (JA0110/JA0111 = 대상 나이 하한/상한 등)
 
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
 const BASE_URL = 'https://api.odcloud.kr/api/gov24/v3';
 
 /**
@@ -50,5 +53,30 @@ export async function fetchAll(operation, { perPage = 1000, onPage } = {}) {
     if (body.data.length === 0) break;
     page += 1;
   }
+  return rows;
+}
+
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * 오퍼레이션 전체를 받아 rawDir/gov24-<operation>.json에 캐시한다. 24시간 안에 받은 캐시가 있으면
+ * API를 부르지 않는다 (전체 10,969건이라 오퍼레이션마다 11회 호출, 개발계정 한도 10,000회).
+ */
+export async function loadOperation(operation, { rawDir, refresh = false }) {
+  const file = join(rawDir, `gov24-${operation}.json`);
+  if (!refresh) {
+    const info = await stat(file).catch(() => null);
+    if (info && Date.now() - info.mtimeMs < CACHE_TTL_MS) {
+      console.log(`  ${operation}: 캐시 사용 (${file})`);
+      return JSON.parse(await readFile(file, 'utf8'));
+    }
+  }
+  const rows = await fetchAll(operation, {
+    onPage: ({ page, fetched, total }) =>
+      process.stdout.write(`\r  ${operation}: ${page}페이지, ${fetched}/${total}건`),
+  });
+  process.stdout.write('\n');
+  await mkdir(rawDir, { recursive: true });
+  await writeFile(file, JSON.stringify(rows));
   return rows;
 }

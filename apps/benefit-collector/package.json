@@ -4,9 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "test:gov24": "node src/test-gov24.js"
+    "collect": "node src/collect.js",
+    "mark-published": "node src/mark-published.js",
+    "test:gov24": "node src/test-gov24.js",
+    "test": "node --test \"test/**/*.test.js\""
   },
   "dependencies": {
-    "dotenv": "^17.0.0"
+    "@anthropic-ai/sdk": "^0.128.0",
+    "@google/genai": "^2.30.0",
+    "dotenv": "^17.0.0",
+    "zod": "^4.6.7"
   }
 }
