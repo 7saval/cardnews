@@ -34,18 +34,19 @@ npm run dev
 ### 2. PNG로 렌더링 (실사용)
 
 ```bash
-# 내장 샘플 데이터로 렌더링 (output/ 폴더에 저장)
+# 내장 샘플 데이터로 렌더링 (output/benefit/sample에 저장)
 npm run render
 
 # 넘침 확인 샘플로 렌더링
-npm run render -- --data samples/stress.json --out output/stress
+npm run render -- --data samples/stress.json          # → output/benefit/stress
 
 # content-generator가 만든 실제 JSON으로 렌더링
-npm run render -- --data ../content-generator/output/test.json --out output/test
+npm run render -- --data ../content-generator/output/test.json   # → output/benefit/test
 ```
 
 - `--data` 생략 시 내장 샘플 데이터 사용
-- `--out` 생략 시 `output/`에 저장
+- `--out` 생략 시 `output/benefit/<JSON 파일 이름>`(샘플은 `sample`)에 저장. 맛집 시절 결과물(`output/` 바로 아래)과
+  섞이지 않고, 회차마다 폴더가 따로 생긴다
 
 결과는 `1-cover.png`, `2-<정책명>.png`, ..., `N-cta.png` 순서로 저장된다.
 
@@ -72,5 +73,5 @@ npm run render -- --data ../content-generator/output/test.json --out output/test
 cd ../content-generator
 npm run generate -- --input <수집결과.json> --handle <내 인스타 핸들> --out output/test.json
 cd ../card-renderer
-npm run render -- --data ../content-generator/output/test.json --out output/test
+npm run render -- --data ../content-generator/output/test.json   # → output/benefit/test
 ```

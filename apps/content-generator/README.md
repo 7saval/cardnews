@@ -96,7 +96,7 @@ npm test
 
 ```bash
 cd ../card-renderer
-npm run render -- --data ../content-generator/output/test.json --out output/test
+npm run render -- --data ../content-generator/output/test.json   # → card-renderer/output/benefit/test
 ```
 
 자세한 사용법은 `../card-renderer/README.md` 참고.

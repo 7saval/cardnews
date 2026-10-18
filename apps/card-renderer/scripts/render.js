@@ -1,14 +1,17 @@
 // 카드뉴스 JSON을 받아 카드별 PNG로 렌더링하는 CLI 스크립트.
 //
 // 사용법:
-//   npm run render                                    → 내장 샘플 데이터로 렌더링
-//   npm run render -- --data path/to/data.json         → 지정한 JSON으로 렌더링
+//   npm run render                                    → 내장 샘플 데이터로 렌더링 (output/benefit/sample)
+//   npm run render -- --data path/to/data.json         → 지정한 JSON으로 렌더링 (output/benefit/data)
 //   npm run render -- --data path/to/data.json --out output-example
+//
+// --out을 생략하면 output/benefit/<JSON 파일 이름>에 저장한다. 맛집 시절 결과물(output/ 바로 아래)과
+// 섞이지 않게 하고, 회차마다 폴더가 따로 생겨 파일명이 겹쳐도 덮어쓰거나 섞이지 않는다.
 
 import { createServer } from 'vite';
 import { chromium } from 'playwright';
 import { readFileSync, mkdirSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { resolve, join, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertValidCardNewsData } from '../../../shared/schemas/validate-card-news.js';
 
@@ -16,11 +19,12 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const projectRoot = resolve(__dirname, '..');
 
 function parseArgs(argv) {
-  const args = { data: null, out: 'output' };
+  const args = { data: null, out: null };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--data') args.data = argv[++i];
     else if (argv[i] === '--out') args.out = argv[++i];
   }
+  args.out ??= join('output', 'benefit', args.data ? basename(args.data, '.json') : 'sample');
   return args;
 }
 

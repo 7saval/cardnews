@@ -13,7 +13,7 @@
 //
 // 산출물 (같은 이름으로 짝지어짐):
 //   apps/content-generator/output/<name>.json, <name>.meta.json
-//   apps/card-renderer/output/<name>/*.png
+//   apps/card-renderer/output/benefit/<name>/*.png
 
 import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
@@ -79,7 +79,7 @@ async function main() {
 
   const name = args.name ?? new Date().toISOString().replace(/[:.]/g, '-');
   const jsonPath = join(apps.generator, 'output', `${name}.json`);
-  const pngDir = join(apps.renderer, 'output', name);
+  const pngDir = join(apps.renderer, 'output', 'benefit', name);
 
   console.log(`입력: ${inputPath}`);
   console.log(`산출물 이름: ${name}`);
