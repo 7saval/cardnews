@@ -3,7 +3,7 @@ import './App.css';
 import { CoverCard } from './components/CoverCard';
 import { ContentCard } from './components/ContentCard';
 import { FollowCTACard } from './components/FollowCTACard';
-import { sampleCardNews } from './sampleData';
+import { BUILTIN_SAMPLES, sampleCardNews } from './sampleData';
 import type { CardNewsData } from '../../../shared/schemas/card-news';
 
 declare global {
@@ -22,36 +22,19 @@ function getCardNewsData(): CardNewsData {
 }
 
 function buildCards(data: CardNewsData) {
-  const cover = (
-    <CoverCard
-      sourceHandle={data.source_handle}
-      hookLine={data.hook_line}
-      backgroundImageUrl={data.cover_image_url}
-      imageCredit={data.cover_image_credit}
-    />
-  );
+  const cover = <CoverCard data={data} />;
 
   const contents = data.cards.map((c) => (
     <ContentCard
       key={c.order}
       sourceHandle={data.source_handle}
-      placeName={c.place_name}
-      caption={c.caption}
-      address={c.address}
-      backgroundImageUrl={c.image_url}
-      imageCredit={c.image_credit}
+      item={c}
+      total={data.cards.length}
+      baseDate={data.generated_at}
     />
   ));
 
-  const cta = (
-    <FollowCTACard
-      handle={data.cta_card.handle}
-      ctaText={data.cta_card.cta_text}
-      hookLines={data.cta_card.hook_lines}
-      backgroundImageUrl={data.cta_card.image_url}
-      imageCredit={data.cta_card.image_credit}
-    />
-  );
+  const cta = <FollowCTACard cta={data.cta_card} dataSource={data.data_source} />;
 
   return { cover, contents, cta };
 }
@@ -111,7 +94,7 @@ function PreviewGallery({ fallbackData, initialName }: { fallbackData: CardNewsD
     else url.searchParams.delete('data');
     window.history.replaceState(null, '', url);
 
-    if (!selected) return;
+    if (!selected || selected in BUILTIN_SAMPLES) return;
     let cancelled = false;
     fetch(`/__outputs/${encodeURIComponent(selected)}.json`)
       .then(async (res) => {
@@ -132,7 +115,8 @@ function PreviewGallery({ fallbackData, initialName }: { fallbackData: CardNewsD
     };
   }, [selected]);
 
-  const data = selected && loaded?.name === selected ? loaded.data : fallbackData;
+  const data =
+    BUILTIN_SAMPLES[selected] ?? (selected && loaded?.name === selected ? loaded.data : fallbackData);
   const { cover, contents, cta } = buildCards(data);
 
   return (
@@ -142,6 +126,7 @@ function PreviewGallery({ fallbackData, initialName }: { fallbackData: CardNewsD
           데이터{' '}
           <select value={selected} onChange={(e) => setSelected(e.target.value)}>
             <option value="">(내장 샘플)</option>
+            <option value="__stress">(넘침 확인 샘플)</option>
             {names.map((n) => (
               <option key={n} value={n}>
                 {n}

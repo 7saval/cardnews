@@ -1,6 +1,6 @@
 import react from '@vitejs/plugin-react'
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs'
-import { resolve, extname, sep } from 'node:path'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, type Plugin } from 'vite'
 
@@ -45,52 +45,7 @@ function generatorOutputsPlugin(): Plugin {
   }
 }
 
-const matcherImagesDir = resolve(fileURLToPath(new URL('.', import.meta.url)), '../image-matcher/images')
-const IMAGE_TYPES: Record<string, string> = {
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.webp': 'image/webp',
-}
-
-/**
- * image-matcher가 카드 JSON에 넣는 image_url(/__images/<images 기준 경로>)을 실제 파일로 서빙한다.
- * 미리보기(npm run dev)와 Playwright 렌더링(npm run render) 둘 다 이 개발 서버를 쓴다.
- */
-function matcherImagesPlugin(): Plugin {
-  return {
-    name: 'matcher-images',
-    configureServer(server) {
-      server.middlewares.use('/__images', (req, res) => {
-        // 경로 조각별로 디코딩 (places/<가게>/<파일>, topics/<주제>/_cover/<파일>, _cta/<파일>)
-        let segments: string[]
-        try {
-          segments = (req.url ?? '/').split('?')[0].split('/').filter(Boolean).map(decodeURIComponent)
-        } catch {
-          segments = [] // 잘못된 % 인코딩
-        }
-        const ext = extname(segments.at(-1) ?? '').toLowerCase()
-        // 경로 조작 방지: 빈/./.. 조각이나 슬래시·역슬래시가 섞인 조각 거부 + 최종 경로가 images 안인지 재확인
-        const badSegment = segments.some((s) => s === '.' || s === '..' || /[\\/]/.test(s))
-        const filePath = resolve(matcherImagesDir, ...segments)
-        if (!segments.length || badSegment || !IMAGE_TYPES[ext] || !filePath.startsWith(matcherImagesDir + sep)) {
-          res.statusCode = 404
-          res.end()
-          return
-        }
-        if (!existsSync(filePath)) {
-          res.statusCode = 404
-          res.end()
-          return
-        }
-        res.setHeader('Content-Type', IMAGE_TYPES[ext])
-        res.end(readFileSync(filePath))
-      })
-    },
-  }
-}
-
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), generatorOutputsPlugin(), matcherImagesPlugin()],
+  plugins: [react(), generatorOutputsPlugin()],
 })

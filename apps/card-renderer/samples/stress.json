@@ -1,0 +1,59 @@
+{
+  "series_type": "deadline",
+  "series_title": "이번 주 마감되는 생활안정 혜택 3선 총정리",
+  "hook_line": "이번 주가 마지막\n신청 안 하면\n내년까지 기다려야 해요",
+  "category": "생활안정",
+  "region": null,
+  "source_handle": "hotsoozip",
+  "generated_at": "2026-10-18",
+  "data_source": "행정안전부 대한민국 공공서비스(혜택) 정보 (공공데이터포털)",
+  "cards": [
+    {
+      "order": 1,
+      "source_id": "stress:long-title",
+      "title": "민간건축물 대상 지진안전 시설물 인증제 신청에 필요한 비용(내진성능평가 비용, 인증 수수료) 지원",
+      "subtitle": "긴 정책명과 긴 부제가 한 줄을 넘어가는 경우를 확인하는 카드",
+      "caption": "캡션도 길게 써서 한 줄 박스에 들어가는지 확인해요 정말로",
+      "benefit": "내진성능평가 비용과 인증 수수료를 건물당 최대 1,000만원까지 지원해요",
+      "target": "민간건축물 소유자 중 지진안전 시설물 인증을 신청하려는 개인·법인 (공공건축물 제외, 세부 요건 상이)",
+      "category": "행정·안전",
+      "period_text": "2026.10.01 ~ 2026.10.18",
+      "period_end": "2026-10-18",
+      "source_name": "재단법인전남광주통합특별시중소기업일자리경제진흥원",
+      "source_url": "https://www.gov.kr/portal/rcvfvrSvc/dtlEx/STRESS1"
+    },
+    {
+      "order": 2,
+      "source_id": "stress:short",
+      "title": "청년 월세 지원",
+      "subtitle": "짧은 글",
+      "caption": "짧아요",
+      "benefit": "월 20만원",
+      "target": "청년",
+      "category": "주거·자립",
+      "period_text": "2026.10.01 ~ 2026.10.21",
+      "period_end": "2026-10-21",
+      "source_name": "국토교통부",
+      "source_url": "https://www.gov.kr/portal/rcvfvrSvc/dtlEx/STRESS2"
+    },
+    {
+      "order": 3,
+      "source_id": "stress:mid",
+      "title": "에너지바우처 지원",
+      "subtitle": "난방비 걱정 덜어주는 바우처",
+      "caption": "겨울 오기 전에 미리 신청하세요",
+      "benefit": "가구원 수에 따라 동절기 난방비 바우처 지급",
+      "target": "생계·의료급여 수급 가구 중 노인·영유아·장애인 포함 가구",
+      "category": "생활안정",
+      "period_text": "2026.10.01 ~ 2026.11.07",
+      "period_end": "2026-11-07",
+      "source_name": "산업통상자원부",
+      "source_url": "https://www.gov.kr/portal/rcvfvrSvc/dtlEx/STRESS3"
+    }
+  ],
+  "cta_card": {
+    "handle": "hotsoozip",
+    "cta_text": "마감 전에 알려드릴게요\n팔로우하고 놓치지 마세요",
+    "hook_lines": ["신청 전 공식 공고는 꼭 확인하세요", "놓치기 아까운 혜택만 골라드립니다"]
+  }
+}

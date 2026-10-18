@@ -1,52 +1,50 @@
 import './cards.css';
 import './CoverCard.css';
-import { ImageCredit } from './ImageCredit';
+import { CardChrome } from './CardChrome';
+import { FitText } from './FitText';
+import { BRAND_THEME, gradientOf, shortRegion } from '../theme';
+import type { CardNewsData } from '../../../../shared/schemas/card-news';
 
-interface CoverCardProps {
-  sourceHandle: string;
-  /** \n으로 구분된 훅 카피. 줄마다 흰색/틸이 번갈아 표시된다. */
-  hookLine: string;
-  backgroundImageUrl?: string;
-  imageCredit?: string;
-  logoUrl?: string;
-}
+const SERIES_BADGE: Record<CardNewsData['series_type'], string> = {
+  always: '상시 신청 가능',
+  district: '우리 구 혜택',
+  deadline: '마감 임박',
+};
 
-export function CoverCard({
-  sourceHandle,
-  hookLine,
-  backgroundImageUrl,
-  imageCredit,
-  logoUrl = '/logo.png',
-}: CoverCardProps) {
-  const lines = hookLine.split('\n');
+/** 커버: 브랜드 그라디언트 위에 카테고리(또는 자치구) 칩 → 후킹 문구 → 회차 제목 + 건수 */
+export function CoverCard({ data }: { data: CardNewsData }) {
+  const lines = data.hook_line.split('\n');
+  const chip = data.series_type === 'district' && data.region ? shortRegion(data.region) : data.category;
 
   return (
-    <div className="card">
-      {backgroundImageUrl ? (
-        <div className="cover-card__bg" style={{ backgroundImage: `url(${backgroundImageUrl})` }} />
-      ) : (
-        <div className="card-placeholder-bg">[배경 이미지 자리]</div>
-      )}
-      <div className="cover-card__dim" />
+    <div className="card" style={{ background: gradientOf(BRAND_THEME) }}>
+      <div className="card-pattern" />
+      <CardChrome handle={data.source_handle} />
 
-      <div className="card-watermark">
-        <span>📷</span>
-        <span>{sourceHandle}</span>
-      </div>
-      <ImageCredit credit={imageCredit} />
-      <div className="card-mascot-badge">
-        {logoUrl ? <img src={logoUrl} alt="핫수집 로고" /> : 'LOGO'}
+      <div className="cover-card__chips">
+        {chip && (
+          <span className="card-chip" style={{ color: BRAND_THEME.ink }}>
+            {chip}
+          </span>
+        )}
+        <span className={`card-chip ${data.series_type === 'deadline' ? 'card-chip--urgent' : 'card-chip--outline'}`}>
+          {SERIES_BADGE[data.series_type]}
+        </span>
       </div>
 
-      <div className="cover-card__title">
+      <FitText fitKey={data.hook_line} max={150} min={80} className="cover-card__hook">
         {lines.map((line, i) => (
-          <div
-            key={i}
-            className={`cover-card__line ${i % 2 === 0 ? 'cover-card__line--white' : 'cover-card__line--teal'}`}
-          >
+          <div key={i} className={`cover-card__line ${i % 2 === 1 ? 'cover-card__line--accent' : ''}`}>
             {line}
           </div>
         ))}
+      </FitText>
+
+      <div className="cover-card__footer">
+        <FitText fitKey={data.series_title} max={52} min={30} className="cover-card__series">
+          {data.series_title}
+        </FitText>
+        <div className="cover-card__swipe">혜택 {data.cards.length}개 · 옆으로 넘겨보세요 →</div>
       </div>
     </div>
   );

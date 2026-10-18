@@ -36,8 +36,28 @@ function loadCardNewsData(dataPath) {
   return data;
 }
 
-function slugifyPlaceName(placeName) {
-  return placeName.replace(/[\\/:*?"<>|\s]+/g, '-');
+/** 파일명용 정책명: 금지 문자·공백을 -로 바꾸고 너무 긴 이름은 자른다 (정책명 p99가 34자) */
+function slugifyTitle(title) {
+  return title.replace(/[\\/:*?"<>|\s]+/g, '-').slice(0, 40).replace(/-+$/, '');
+}
+
+/**
+ * FitText(src/components/FitText.tsx)가 웹폰트 로딩 뒤 글자 크기를 다 맞출 때까지 기다리고,
+ * 최소 크기로도 넘친 박스가 있으면 실패시킨다 — 잘린 정책명·지원 내용을 내보내지 않기 위해.
+ */
+async function assertNoOverflow(page, cardParam) {
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll('[data-fit]')].every((el) => el.dataset.fitted === 'true'),
+  );
+  const overflowed = await page.evaluate(() =>
+    [...document.querySelectorAll('[data-fit][data-overflow="true"]')].map((el) => el.textContent.trim()),
+  );
+  if (overflowed.length > 0) {
+    throw new Error(
+      `${cardParam} 카드에서 글자가 칸을 넘칩니다 (최소 글자 크기로도 안 들어감):\n` +
+        overflowed.map((t) => `  - ${t}`).join('\n'),
+    );
+  }
 }
 
 /** cover + content-N... + cta 렌더링 순서와 저장 파일명을 결정한다. */
@@ -49,7 +69,7 @@ function buildRenderTargets(data) {
   data.cards.forEach((c, i) => {
     targets.push({
       cardParam: `content-${i + 1}`,
-      fileName: `${pad(i + 2)}-${slugifyPlaceName(c.place_name)}.png`,
+      fileName: `${pad(i + 2)}-${slugifyTitle(c.title)}.png`,
     });
   });
   targets.push({ cardParam: 'cta', fileName: `${pad(total)}-cta.png` });
@@ -91,6 +111,7 @@ async function main() {
   for (const target of targets) {
     await page.goto(`${url}/?card=${target.cardParam}`, { waitUntil: 'networkidle' });
     await page.waitForSelector('.card');
+    await assertNoOverflow(page, target.cardParam);
     const filePath = join(outDir, target.fileName);
     await page.screenshot({ path: filePath });
     savedFiles.push(filePath);

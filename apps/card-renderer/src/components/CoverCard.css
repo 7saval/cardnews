@@ -1,41 +1,61 @@
-.cover-card__dim {
+.cover-card__chips {
   position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.25);
-}
-
-.cover-card__bg {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-}
-
-.cover-card__title {
-  position: absolute;
-  top: 15%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 92%;
+  top: 240px;
+  left: 72px;
+  right: 72px;
   z-index: 5;
-  text-align: center;
+  display: flex;
+  gap: 16px;
+}
+
+.cover-card__hook {
+  position: absolute;
+  top: 350px;
+  left: 72px;
+  right: 72px;
+  height: 640px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .cover-card__line {
   font-family: 'Black Han Sans', 'Noto Sans KR', sans-serif;
-  font-size: 110px;
-  line-height: 0.95;
-  font-weight: 400;
-  -webkit-text-stroke: 11px #16324f;
-  paint-order: stroke fill;
-  text-shadow: 0 0 18px rgba(255, 255, 255, 0.9);
+  line-height: 1.1;
+  color: #fff;
   white-space: nowrap;
+  text-shadow: 0 6px 0 rgba(150, 30, 20, 0.25);
 }
 
-.cover-card__line--white {
-  color: #ffffff;
+.cover-card__line--accent {
+  color: #fff3b0;
 }
 
-.cover-card__line--teal {
-  color: #5f9ea0;
+.cover-card__footer {
+  position: absolute;
+  left: 72px;
+  right: 72px;
+  bottom: 96px;
+  z-index: 5;
+}
+
+.cover-card__series {
+  height: 104px;
+  line-height: 104px;
+  padding: 0 40px;
+  border-radius: 52px;
+  background: #fff;
+  color: #1f1f1f;
+  font-weight: 900;
+  text-align: center;
+  white-space: nowrap;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+.cover-card__swipe {
+  margin-top: 28px;
+  font-size: 32px;
+  font-weight: 700;
+  text-align: center;
 }
