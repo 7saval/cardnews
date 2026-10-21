@@ -74,6 +74,8 @@ fact-check가 못 잡는 것(숫자 없는 거짓말 "무료"·"누구나", 한�
 - `output/<이름>.json` — `card-renderer`가 바로 읽을 수 있는 카드뉴스 JSON
 - `output/<이름>.meta.json` — 프로바이더·모델, 입력 파일, fact-check 시도별 결과
   (`{ provider, model, fellBack, generatedAt, input, factCheck: { passed, attempts } }`)
+- `output/<이름>.caption.txt` — 게시물 캡션. 카드마다 정책명·혜택·대상·신청기한·원문 링크, 끝에 비공식 큐레이션·확인 안내와
+  출처 (`src/caption.js`, LLM을 거치지 않음). 인스타 한도 2,200자를 넘으면 실패
 - `output/<이름>.failed.json` — 재생성 후에도 검증에 실패했을 때만. 에러 목록과 마지막 결과
 
 ```
@@ -89,7 +91,8 @@ fact-check가 못 잡는 것(숫자 없는 거짓말 "무료"·"누구나", 한�
 npm test
 ```
 
-`test/fact-check.test.js`(숫자 정규화·원문 대조), `test/assemble.test.js`(사실 필드 주입·카드 누락)를
+`test/fact-check.test.js`(숫자 정규화·원문 대조), `test/assemble.test.js`(사실 필드 주입·카드 누락),
+`test/caption.test.js`(캡션)를
 `shared/schemas`의 실제 샘플로 돌린다.
 
 ## 다음 단계로 이어서 확인

@@ -1,0 +1,100 @@
+name: benefits-weekly
+
+# 매주 월요일 KST 07:00에 혜택 카드뉴스 1회차를 만든다: 수집·선별 → 카피 + fact-check → PNG 렌더.
+# 결과(PNG, caption.txt, adopted.json 등)는 이 실행의 artifact로만 올리고 저장소는 건드리지 않는다.
+# 사람이 artifact를 받아 검수·게시한 뒤 benefit-collector의 mark-published로 발행 이력을 기록한다
+# (publisher 구현 전까지. _docs/topic-pivot-benefits-plan.md §6.5).
+on:
+  schedule:
+    - cron: '0 22 * * 0' # UTC 일 22:00 = KST 월 07:00
+  workflow_dispatch:
+    inputs:
+      series:
+        description: '시리즈 (always: 카테고리별, district: 자치구)'
+        type: choice
+        options: [always, district]
+        default: always
+      category:
+        description: 'always 카테고리 (비우면 순환 순서대로). 예: 주거·자립'
+        required: false
+      region:
+        description: 'district 자치구. 예: 동작구'
+        required: false
+      count:
+        description: '혜택 개수'
+        required: false
+        default: '5'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            apps/benefit-collector/package-lock.json
+            apps/content-generator/package-lock.json
+            apps/card-renderer/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefix apps/benefit-collector
+          npm ci --prefix apps/content-generator
+          npm ci --prefix apps/card-renderer
+
+      # 카드의 📷·💬 이모지가 네모로 나오지 않게 컬러 이모지 폰트를 같이 설치한다
+      - name: Install Chromium and emoji font
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-color-emoji
+          cd apps/card-renderer && npx playwright install --with-deps chromium
+
+      # 관련성 점수 캐시를 실행 사이에 이어 쓴다 — 원문이 안 바뀐 혜택은 LLM에 다시 묻지 않는다
+      - name: Restore relevance score cache
+        uses: actions/cache@v4
+        with:
+          path: apps/benefit-collector/output/relevance-cache.json
+          key: relevance-${{ github.run_id }}
+          restore-keys: relevance-
+
+      - name: Run pipeline
+        env:
+          DATA_GO_KR_SERVICE_KEY: ${{ secrets.DATA_GO_KR_SERVICE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SERIES: ${{ inputs.series || 'always' }}
+          CATEGORY: ${{ inputs.category }}
+          REGION: ${{ inputs.region }}
+          COUNT: ${{ inputs.count || '5' }}
+        run: |
+          set -- --handle hotsoozip --collect --name weekly --series "$SERIES" --count "$COUNT"
+          if [ -n "$CATEGORY" ]; then set -- "$@" --category "$CATEGORY"; fi
+          if [ -n "$REGION" ]; then set -- "$@" --region "$REGION"; fi
+          node scripts/pipeline.js "$@"
+
+      - name: Upload cards
+        uses: actions/upload-artifact@v4
+        with:
+          name: cardnews-${{ github.run_number }}
+          path: apps/card-renderer/output/benefit/weekly/
+          retention-days: 30
+
+      # 실패하면 fact-check 결과(.failed.json)와 점수를 남겨 원인을 볼 수 있게 한다
+      - name: Upload failure details
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-${{ github.run_number }}
+          path: |
+            apps/content-generator/output/
+            apps/benefit-collector/output/*.json
+            !apps/benefit-collector/output/raw/
+          retention-days: 14

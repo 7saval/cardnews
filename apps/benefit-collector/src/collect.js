@@ -10,6 +10,7 @@
 //   npm run collect -- --series district --region 동작구
 //   npm run collect -- --dry-run                      # LLM 없이 카테고리별 후보 수만 확인
 //   npm run collect -- --refresh                      # 원본을 API에서 다시 받기
+//   npm run collect -- --out output/weekly-adopted.json  # 저장 경로 지정 (pipeline이 사용)
 //
 // 산출물:
 //   output/<YYYYMMDD-HHmmss>-<series>-adopted.json   content-generator --input으로 넘길 파일
@@ -17,7 +18,7 @@
 
 import 'dotenv/config';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadOperation } from './lib/gov24.js';
 import { normalizeGov24, GOV24_DATA_SOURCE } from './lib/normalize-gov24.js';
@@ -33,7 +34,7 @@ const rawDir = join(outputDir, 'raw');
 const scoreCacheFile = join(outputDir, 'relevance-cache.json');
 
 function parseArgs(argv) {
-  const args = { series: 'always', category: null, region: null, count: 5, refresh: false, dryRun: false };
+  const args = { series: 'always', category: null, region: null, count: 5, refresh: false, dryRun: false, out: null };
   for (let i = 0; i < argv.length; i += 1) {
     if (argv[i] === '--series') args.series = argv[++i];
     else if (argv[i] === '--category') args.category = argv[++i];
@@ -41,6 +42,7 @@ function parseArgs(argv) {
     else if (argv[i] === '--count') args.count = Number(argv[++i]);
     else if (argv[i] === '--refresh') args.refresh = true;
     else if (argv[i] === '--dry-run') args.dryRun = true;
+    else if (argv[i] === '--out') args.out = argv[++i];
   }
   if (!['always', 'district'].includes(args.series)) {
     throw new Error(`--series는 always 또는 district입니다 (받은 값: ${args.series})`);
@@ -121,8 +123,8 @@ async function main() {
     };
     assertValidCollectedBenefits(collected, '수집 결과');
 
-    await mkdir(outputDir, { recursive: true });
-    const outFile = join(outputDir, `${stampKst()}-${args.series}-adopted.json`);
+    const outFile = args.out ? resolve(process.cwd(), args.out) : join(outputDir, `${stampKst()}-${args.series}-adopted.json`);
+    await mkdir(dirname(outFile), { recursive: true });
     await writeFile(outFile, JSON.stringify(collected, null, 2));
     const pickedIds = new Set(picked.map((r) => r.source_id));
     const ranked = g.candidates

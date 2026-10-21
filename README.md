@@ -97,26 +97,30 @@ npm run render -- --data ../content-generator/output/result.json --out output/re
 `output/result/1-cover.png`부터 CTA 카드까지 순서대로 PNG가 저장된다. 인스타그램에는
 지금은 수동으로 업로드한다(발행 자동화는 Phase 4에서 붙임).
 
-### 카피 생성 → 사진 매칭 → 렌더링을 한 번에 실행 (`scripts/pipeline.js`)
+### 수집 → 카피 → 렌더링을 한 번에 실행 (`scripts/pipeline.js`)
 
 저장소 루트에서:
 
 ```bash
-cd apps/research-collector && npm run collect && cd ../..   # 1단계 (소재 리서치)
-npm run pipeline -- --handle <내 인스타 핸들>                  # 카피 생성 → 사진 매칭 → 렌더링
+npm run pipeline -- --handle hotsoozip --collect                     # 수집·선별 → 카피 + fact-check → 렌더링
+npm run pipeline -- --handle hotsoozip --collect --category 주거·자립  # 카테고리 지정
+npm run pipeline -- --handle hotsoozip --collect --series district --region 동작구
+npm run pipeline -- --handle hotsoozip                               # 수집 없이 가장 최근 *-adopted.json으로
 ```
 
-- 사진 매칭(`apps/image-matcher`)은 사람이 허락받아 `images/places/<가게>/`에 넣어둔 사진만 쓴다 (가게 단위라 여러 주제에서 재사용, 커버는 주제별, CTA는 공통). 사진이
-  없으면 placeholder 배경으로 진행된다. 사진을 나중에 넣었다면 LLM을 다시 부르지 말고
-  `image-matcher`의 `npm run match` → `card-renderer`의 `npm run render`만 다시 돌리면 된다
-  (상세: `apps/image-matcher/README.md`)
-
-- `--input` 생략 시 `apps/research-collector/output`의 **가장 최근** `*-adopted-*.txt`를 입력으로 쓴다
-  (직접 지정: `--input apps/research-collector/output/<파일>.txt`)
-- `--name <이름>`으로 산출물 이름 지정 (기본: 타임스탬프). 결과는 같은 이름으로 짝지어 저장된다:
-  - `apps/content-generator/output/<이름>.json` (+ `.meta.json`)
-  - `apps/card-renderer/output/<이름>/*.png`
+- 결과는 `apps/card-renderer/output/benefit/<이름>/` 한 폴더에 모인다: 카드 PNG, `caption.txt`(원문 링크·확인 안내 포함),
+  `adopted.json`(수집 결과), `scores.json`(관련성 점수), `card-news.json`
+- `--name <이름>`으로 이름 지정 (기본: KST 타임스탬프)
+- **발행 이력은 자동으로 기록하지 않는다.** 검수·게시한 뒤 직접 기록하고 `data/published.json`을 커밋한다 (publisher 구현 전까지):
+  `cd apps/benefit-collector && npm run mark-published -- --input <결과 폴더>/adopted.json`
 - 한 단계라도 실패하면 거기서 멈춘다. 각 앱을 자기 폴더에서 실행하므로 앱별 `.env`/`npm install`은 그대로 필요
+
+### 매주 자동 실행 (GitHub Actions `benefits-weekly`)
+
+- 매주 월요일 KST 07:00에 `--collect`로 1회차를 만들어 실행 결과물(artifact) `cardnews-<번호>`로 올린다. 저장소에는 쓰지 않는다
+- Actions 탭에서 수동 실행도 된다 (시리즈·카테고리·자치구·개수 입력)
+- 필요한 Secrets: `DATA_GO_KR_SERVICE_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`(폴백)
+- 흐름: artifact 내려받기 → 카드·`caption.txt` 검수 → 인스타 게시 → `mark-published`로 이력 기록·커밋
 
 ## 문서
 

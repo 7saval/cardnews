@@ -26,6 +26,7 @@ npm run collect                                   # 카테고리 시리즈, 순�
 npm run collect -- --category 주거·자립 --count 4  # 카테고리·건수 지정
 npm run collect -- --series district --region 동작구
 npm run collect -- --dry-run                      # LLM 없이 카테고리별 후보 수만 확인
+npm run collect -- --out output/weekly-adopted.json  # 저장 경로 지정 (루트 pipeline이 사용)
 npm run collect -- --refresh                      # 원본을 API에서 다시 받기 (기본: 24시간 캐시)
 ```
 

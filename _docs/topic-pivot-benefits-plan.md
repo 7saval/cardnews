@@ -234,6 +234,12 @@ district는 null), `region`(district 시리즈의 자치구, 나머지는 null),
 - 입력 탐색: `research-collector/output/*-adopted-*.txt` → `benefit-collector/output/*-adopted.json`
 - 단계 구성: `1/3 카피 구조화` → `2/3 검증` → `3/3 렌더링` (이미지 매칭 단계 제거)
 - 수집까지 한 번에 돌리는 `--collect` 옵션 추가(스케줄 실행용)
+- **발행 이력은 파이프라인이 기록하지 않는다 (2026-10-21 결정)**: publisher가 없어 "실제로 게시했는지"를
+  알 수 없으므로, GitHub Actions(`benefits-weekly`)는 결과물(PNG·caption·adopted.json)을 artifact로만 올리고
+  사람이 검수·게시한 뒤 `mark-published`로 기록한다. 렌더 성공 시점에 기록하면 검수 탈락·게시 건너뜀 회차의
+  혜택이 후보에서 영영 빠진다. publisher가 생기면 게시 API 성공 직후 publisher가 기록한다
+- 게시물 캡션(`caption.txt`)은 카드뉴스 JSON의 사실 필드로 코드가 만든다 — 카드마다 원문 링크, 끝에 확인
+  안내·출처 (§8). LLM을 거치지 않는다
 
 ### 6.6 `apps/image-matcher` (보관)
 

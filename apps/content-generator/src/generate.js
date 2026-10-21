@@ -29,6 +29,7 @@ import {
 } from './prompt.js';
 import { assembleCardNews } from './assemble.js';
 import { checkFacts } from './fact-check.js';
+import { buildCaption } from './caption.js';
 import { assertValidCardNewsData } from '../../../shared/schemas/validate-card-news.js';
 import { assertValidCollectedBenefits } from '../../../shared/schemas/validate-benefits.js';
 
@@ -227,6 +228,7 @@ async function main() {
 
   writeFileSync(outPath, JSON.stringify(data, null, 2), 'utf-8');
   writeFileSync(outPath.replace(/\.json$/, '.meta.json'), JSON.stringify(meta, null, 2), 'utf-8');
+  writeFileSync(outPath.replace(/\.json$/, '.caption.txt'), buildCaption(data), 'utf-8');
 
   console.log(`\n✔ 카드 ${data.cards.length}개짜리 카드뉴스 JSON을 생성했습니다: ${outPath}`);
   console.log(`  provider: ${gen.provider}${gen.fellBack ? ' (Gemini 폴백)' : ''} / model: ${gen.model}`);

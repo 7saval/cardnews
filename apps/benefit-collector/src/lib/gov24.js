@@ -71,11 +71,13 @@ export async function loadOperation(operation, { rawDir, refresh = false }) {
       return JSON.parse(await readFile(file, 'utf8'));
     }
   }
+  // 터미널에선 한 줄을 덮어쓰고, GitHub Actions 로그처럼 TTY가 아니면 페이지마다 줄을 바꾼다
+  const tty = process.stdout.isTTY;
   const rows = await fetchAll(operation, {
     onPage: ({ page, fetched, total }) =>
-      process.stdout.write(`\r  ${operation}: ${page}페이지, ${fetched}/${total}건`),
+      process.stdout.write(`${tty ? '\r' : ''}  ${operation}: ${page}페이지, ${fetched}/${total}건${tty ? '' : '\n'}`),
   });
-  process.stdout.write('\n');
+  if (tty) process.stdout.write('\n');
   await mkdir(rawDir, { recursive: true });
   await writeFile(file, JSON.stringify(rows));
   return rows;
