@@ -5,7 +5,7 @@
 //   fact-check에 실패하면 문제 목록을 넣어 1회 재생성하고, 그래도 실패하면 <out>.failed.json을
 //   남기고 실패한다 — 틀린 정보를 내보내는 것보다 낫다. (_docs/topic-pivot-benefits-plan.md §6.3)
 //
-// Gemini(1순위, 무료)가 429(할당량 소진)/503(과부하)/타임아웃으로 재시도까지 실패하면
+// Gemini(1순위, 무료)가 429(할당량 소진)·500·503(과부하)으로 재시도까지 실패하거나 시간 초과(504·타임아웃)면
 // Claude Haiku(폴백)로 자동 전환한다. 그 외 에러(스키마 검증 실패, 인증 오류 등)는
 // 폴백하지 않고 즉시 실패시킨다 — 우리 쪽 버그를 폴백이 가리면 안 되기 때문.
 // 배경: _docs/llm-provider-fallback-plan.md
@@ -51,20 +51,21 @@ function todayKst() {
   return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-// 프로바이더별 "재시도해볼 만한" 상태 코드. Gemini 429/503과 Anthropic
-// 429/500/529(overloaded)는 서로 다른 값이라 각자 따로 둔다.
-// (참고: Anthropic 5xx는 429와 함께 재시도 대상, 4xx 중 429만 예외)
-const GEMINI_RETRYABLE_STATUS = new Set([429, 503]);
+// 프로바이더별 "잠깐 기다리면 풀릴 만한" 상태 코드 — 같은 프로바이더로 지수 백오프 재시도.
+// Gemini와 Anthropic(529 = overloaded)은 값이 달라 각자 따로 둔다.
+const GEMINI_RETRYABLE_STATUS = new Set([429, 500, 503]);
 const ANTHROPIC_RETRYABLE_STATUS = new Set([429, 500, 529]);
 
-// Gemini SDK는 기본 타임아웃이 없다(Node fetch의 5분 제한도 꺼 둠). 서버가 과부하일 때
-// 503 대신 연결만 붙잡고 있으면 요청 하나가 최대 10분 매달리므로 시도마다 상한을 건다.
-// benefit-collector/src/lib/llm.js와 같은 규칙이다.
-const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 120_000;
+// Gemini SDK는 기본 타임아웃이 없다(Node fetch의 5분 제한도 꺼 둠). 과부하 때는 응답이 수 분씩
+// 늦어지므로 시도마다 상한을 건다. SDK는 이 값을 X-Server-Timeout 헤더로 서버에도 보내서,
+// 보통 서버가 먼저 504 DEADLINE_EXCEEDED로 끊는다. benefit-collector/src/lib/llm.js와 같은 규칙.
+// 서버는 10초 미만 deadline을 400으로 거절한다 ("Minimum allowed deadline is 10s")
+const GEMINI_TIMEOUT_MS = Math.max(10_000, Number(process.env.GEMINI_TIMEOUT_MS) || 120_000);
 
-// 타임아웃으로 끊긴 요청은 상태 코드가 없다 — 과부하와 같은 일시적 실패로 본다
-const isTimeout = (err) => err?.name === 'AbortError' || err?.name === 'TimeoutError';
-const isRetryableError = (err, retryableStatus) => retryableStatus.has(err?.status) || isTimeout(err);
+// 시간 초과 — 서버의 504 또는 클라이언트 abort(상태 코드 없음). 느린 상태는 다시 보내도 또 느려서
+// 재시도 없이 바로 Haiku로 넘긴다
+const isDeadlineError = (err) => err?.status === 504 || err?.name === 'AbortError' || err?.name === 'TimeoutError';
+const shouldFallBackFromGemini = (err) => GEMINI_RETRYABLE_STATUS.has(err?.status) || isDeadlineError(err);
 
 // 일시적 과부하/할당량 재시도는 지수 백오프로 최대 4회(최초 1회 + 재시도 3회) 시도.
 async function withRetry(fn, retryableStatus, { attempts = 4, baseDelayMs = 3000 } = {}) {
@@ -72,10 +73,9 @@ async function withRetry(fn, retryableStatus, { attempts = 4, baseDelayMs = 3000
     try {
       return await fn();
     } catch (err) {
-      if (!isRetryableError(err, retryableStatus) || attempt === attempts) throw err;
+      if (!retryableStatus.has(err?.status) || attempt === attempts) throw err;
       const delay = baseDelayMs * 2 ** (attempt - 1);
-      const why = isTimeout(err) ? '응답 없음(타임아웃)' : `${err.status} 응답(일시적 과부하로 추정)`;
-      console.log(`  → ${why}, ${delay / 1000}초 후 재시도 (${attempt}/${attempts - 1})...`);
+      console.log(`  → ${err.status} 응답(일시적 과부하로 추정), ${delay / 1000}초 후 재시도 (${attempt}/${attempts - 1})...`);
       await new Promise((r) => setTimeout(r, delay));
     }
   }
@@ -146,7 +146,7 @@ async function generateWithHaiku(rawMaterial) {
   return { text: JSON.stringify(response.parsed_output), model };
 }
 
-/** Gemini → (429/503/타임아웃이면) Haiku 순서로 카피를 받아 JSON으로 파싱한다 */
+/** Gemini → (429/500/503 재시도 실패 또는 시간 초과면) Haiku 순서로 카피를 받아 JSON으로 파싱한다 */
 async function generateCopy(userMessage) {
   let provider = 'gemini';
   let fellBack = false;
@@ -154,8 +154,9 @@ async function generateCopy(userMessage) {
   try {
     result = await generateWithGemini(userMessage);
   } catch (err) {
-    if (!isRetryableError(err, GEMINI_RETRYABLE_STATUS)) throw err;
-    console.warn(`\n⚠ Gemini 사용 불가(${err.status ?? '타임아웃'}), Claude Haiku로 전환합니다...`);
+    if (!shouldFallBackFromGemini(err)) throw err;
+    const why = isDeadlineError(err) ? `${GEMINI_TIMEOUT_MS / 1000}초 안에 응답 없음` : err.status;
+    console.warn(`\n⚠ Gemini 사용 불가(${why}), Claude Haiku로 전환합니다...`);
     console.warn(`  Gemini 에러 원문: ${err.message}`);
     provider = 'haiku';
     fellBack = true;
