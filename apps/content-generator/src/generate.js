@@ -5,7 +5,7 @@
 //   fact-check에 실패하면 문제 목록을 넣어 1회 재생성하고, 그래도 실패하면 <out>.failed.json을
 //   남기고 실패한다 — 틀린 정보를 내보내는 것보다 낫다. (_docs/topic-pivot-benefits-plan.md §6.3)
 //
-// Gemini(1순위, 무료)가 429(할당량 소진)/503(과부하)으로 재시도까지 실패하면
+// Gemini(1순위, 무료)가 429(할당량 소진)/503(과부하)/타임아웃으로 재시도까지 실패하면
 // Claude Haiku(폴백)로 자동 전환한다. 그 외 에러(스키마 검증 실패, 인증 오류 등)는
 // 폴백하지 않고 즉시 실패시킨다 — 우리 쪽 버그를 폴백이 가리면 안 되기 때문.
 // 배경: _docs/llm-provider-fallback-plan.md
@@ -57,16 +57,25 @@ function todayKst() {
 const GEMINI_RETRYABLE_STATUS = new Set([429, 503]);
 const ANTHROPIC_RETRYABLE_STATUS = new Set([429, 500, 529]);
 
+// Gemini SDK는 기본 타임아웃이 없다(Node fetch의 5분 제한도 꺼 둠). 서버가 과부하일 때
+// 503 대신 연결만 붙잡고 있으면 요청 하나가 최대 10분 매달리므로 시도마다 상한을 건다.
+// benefit-collector/src/lib/llm.js와 같은 규칙이다.
+const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS) || 120_000;
+
+// 타임아웃으로 끊긴 요청은 상태 코드가 없다 — 과부하와 같은 일시적 실패로 본다
+const isTimeout = (err) => err?.name === 'AbortError' || err?.name === 'TimeoutError';
+const isRetryableError = (err, retryableStatus) => retryableStatus.has(err?.status) || isTimeout(err);
+
 // 일시적 과부하/할당량 재시도는 지수 백오프로 최대 4회(최초 1회 + 재시도 3회) 시도.
 async function withRetry(fn, retryableStatus, { attempts = 4, baseDelayMs = 3000 } = {}) {
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
       return await fn();
     } catch (err) {
-      const retryable = retryableStatus.has(err.status);
-      if (!retryable || attempt === attempts) throw err;
+      if (!isRetryableError(err, retryableStatus) || attempt === attempts) throw err;
       const delay = baseDelayMs * 2 ** (attempt - 1);
-      console.log(`  → ${err.status} 응답(일시적 과부하로 추정), ${delay / 1000}초 후 재시도 (${attempt}/${attempts - 1})...`);
+      const why = isTimeout(err) ? '응답 없음(타임아웃)' : `${err.status} 응답(일시적 과부하로 추정)`;
+      console.log(`  → ${why}, ${delay / 1000}초 후 재시도 (${attempt}/${attempts - 1})...`);
       await new Promise((r) => setTimeout(r, delay));
     }
   }
@@ -80,7 +89,7 @@ async function generateWithGemini(rawMaterial) {
   }
 
   const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY, httpOptions: { timeout: GEMINI_TIMEOUT_MS } });
 
   // ai.interactions.create()(신형 "next-gen" 엔드포인트)는 요청 본문을 스트림으로
   // 만들어서, 재시도 시 request.clone()이 "TypeError: unusable"로 실패하는 SDK 버그가
@@ -137,7 +146,7 @@ async function generateWithHaiku(rawMaterial) {
   return { text: JSON.stringify(response.parsed_output), model };
 }
 
-/** Gemini → (429/503이면) Haiku 순서로 카피를 받아 JSON으로 파싱한다 */
+/** Gemini → (429/503/타임아웃이면) Haiku 순서로 카피를 받아 JSON으로 파싱한다 */
 async function generateCopy(userMessage) {
   let provider = 'gemini';
   let fellBack = false;
@@ -145,8 +154,8 @@ async function generateCopy(userMessage) {
   try {
     result = await generateWithGemini(userMessage);
   } catch (err) {
-    if (!GEMINI_RETRYABLE_STATUS.has(err.status)) throw err;
-    console.warn(`\n⚠ Gemini 사용 불가(${err.status}), Claude Haiku로 전환합니다...`);
+    if (!isRetryableError(err, GEMINI_RETRYABLE_STATUS)) throw err;
+    console.warn(`\n⚠ Gemini 사용 불가(${err.status ?? '타임아웃'}), Claude Haiku로 전환합니다...`);
     console.warn(`  Gemini 에러 원문: ${err.message}`);
     provider = 'haiku';
     fellBack = true;
