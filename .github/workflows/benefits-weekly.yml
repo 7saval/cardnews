@@ -27,6 +27,7 @@ on:
 
 permissions:
   contents: read
+  actions: read # 이전 실행의 관련성 점수 캐시 artifact를 내려받기 위해
 
 jobs:
   build:
@@ -57,13 +58,28 @@ jobs:
           sudo apt-get install -y fonts-noto-color-emoji
           cd apps/card-renderer && npx playwright install --with-deps chromium
 
-      # 관련성 점수 캐시를 실행 사이에 이어 쓴다 — 원문이 안 바뀐 혜택은 LLM에 다시 묻지 않는다
+      # 관련성 점수 캐시를 실행 사이에 이어 쓴다 — 원문이 안 바뀐 혜택은 LLM에 다시 묻지 않는다.
+      # actions/cache는 7일 동안 안 쓰면 지워지는데 주간 실행 간격이 정확히 7일이라 매번 사라졌다
+      # (11-02 저장 → 11-09 Cache not found). 그래서 artifact(90일 보관)로 넘긴다.
+      # 가장 최근의 만료 안 된 relevance-cache artifact를 받고, 없으면(첫 실행 등) 빈 캐시로 시작한다.
       - name: Restore relevance score cache
-        uses: actions/cache@v4
-        with:
-          path: apps/benefit-collector/output/relevance-cache.json
-          key: relevance-${{ github.run_id }}
-          restore-keys: relevance-
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          query='[.artifacts[] | select(.expired | not)] | sort_by(.created_at) | last | .id // empty'
+          id=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=relevance-cache&per_page=20" -q "$query")
+          if [ -z "$id" ]; then
+            echo "이전 점수 캐시 없음 — 빈 캐시로 시작"
+            exit 0
+          fi
+          mkdir -p apps/benefit-collector/output
+          zip=/tmp/relevance-cache.zip
+          if gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$zip" \
+            && unzip -o "$zip" -d apps/benefit-collector/output; then
+            echo "점수 캐시 복원 (artifact $id)"
+          else
+            echo "::warning::점수 캐시 내려받기 실패 — 빈 캐시로 시작"
+          fi
 
       - name: Run pipeline
         env:
@@ -79,6 +95,16 @@ jobs:
           if [ -n "$CATEGORY" ]; then set -- "$@" --category "$CATEGORY"; fi
           if [ -n "$REGION" ]; then set -- "$@" --region "$REGION"; fi
           node scripts/pipeline.js "$@"
+
+      # 파이프라인이 중간에 실패해도 수집 단계에서 쌓인 점수는 다음 실행에 넘긴다
+      - name: Save relevance score cache
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relevance-cache
+          path: apps/benefit-collector/output/relevance-cache.json
+          if-no-files-found: ignore
+          retention-days: 90
 
       - name: Upload cards
         uses: actions/upload-artifact@v4
