@@ -1,1 +1,42 @@
-[]
+[
+  {
+    "source_id": "gov24:B55370100042",
+    "title": "미소금융 청년 미래이음 대출",
+    "category": "생활안정",
+    "series_type": "always",
+    "region": null,
+    "published_at": "2026-11-14"
+  },
+  {
+    "source_id": "gov24:135200005045",
+    "title": "전국민 마음투자 지원",
+    "category": "생활안정",
+    "series_type": "always",
+    "region": null,
+    "published_at": "2026-11-14"
+  },
+  {
+    "source_id": "gov24:174100000087",
+    "title": "청년성장프로젝트",
+    "category": "생활안정",
+    "series_type": "always",
+    "region": null,
+    "published_at": "2026-11-14"
+  },
+  {
+    "source_id": "gov24:B27000100054",
+    "title": "법문화교육서비스 제공",
+    "category": "생활안정",
+    "series_type": "always",
+    "region": null,
+    "published_at": "2026-11-14"
+  },
+  {
+    "source_id": "gov24:B55252900201",
+    "title": "일반 상환 학자금 특별상환유예대출",
+    "category": "생활안정",
+    "series_type": "always",
+    "region": null,
+    "published_at": "2026-11-14"
+  }
+]
