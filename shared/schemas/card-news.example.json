@@ -16,6 +16,8 @@
       "caption": "교육 듣는 동안 훈련수당도 나와요",
       "benefit": "직무교육 + 협력사 취업연계, 훈련수당 주당 10만원",
       "target": "만 34세 이하 청년 구직자",
+      "apply_method": "온라인 신청",
+      "contact": "인력지원처 055-751-9881",
       "category": "고용·창업",
       "period_text": "상시신청",
       "period_end": null,
@@ -30,6 +32,8 @@
       "caption": "결제할 때 바로 깎여서 나와요",
       "benefit": "국가기술자격시험 응시료 50% 지원 (1인당 총 3회)",
       "target": "만 34세 이하 청년",
+      "apply_method": "온라인 신청",
+      "contact": "박만수 044-202-7290",
       "category": "고용·창업",
       "period_text": "상시신청",
       "period_end": null,
@@ -44,6 +48,8 @@
       "caption": "면접 볼 때마다 정장 걱정 끝",
       "benefit": "면접 정장 무료 대여 (1회 3박 4일, 연 10회까지)",
       "target": "서울 거주 청년 (고교졸업예정자 ~ 39세 이하)",
+      "apply_method": "온라인 신청",
+      "contact": "일자리정책과 02-2133-5459",
       "category": "고용·창업",
       "period_text": "상시신청",
       "period_end": null,
@@ -58,6 +64,8 @@
       "caption": "진로 고민이라면 일단 검사부터",
       "benefit": "능력·흥미·성격을 측정하는 직업심리검사로 진로 탐색 지원",
       "target": "청소년, 대학생, 성인 구직자 (검사별 대상 상이)",
+      "apply_method": "온라인 신청",
+      "contact": "한국고용정보원 1577-7114",
       "category": "고용·창업",
       "period_text": "상시신청",
       "period_end": null,
@@ -72,6 +80,8 @@
       "caption": "월급에서 빠지는 보험료, 줄일 수 있어요",
       "benefit": "고용보험·국민연금 보험료 80% 지원 (최대 36개월)",
       "target": "근로자 10명 미만 사업장의 월 보수 270만원 미만 신규가입 근로자",
+      "apply_method": "방문 신청",
+      "contact": "근로복지공단 콜센터 1588-0075",
       "category": "고용·창업",
       "period_text": "상시신청",
       "period_end": null,
@@ -82,6 +92,9 @@
   "cta_card": {
     "handle": "hotsoozip",
     "cta_text": "매주 몰랐던 혜택을 모아드려요",
-    "hook_lines": ["신청 전 공식 공고는 꼭 확인하세요", "놓치기 아까운 혜택만 골라드립니다"]
+    "hook_lines": [
+      "신청 전 공식 공고는 꼭 확인하세요",
+      "놓치기 아까운 혜택만 골라드립니다"
+    ]
   }
 }

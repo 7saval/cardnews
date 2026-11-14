@@ -22,6 +22,7 @@ export const SYSTEM_PROMPT = `너는 청년 대상 정부·공공 혜택을 소�
 - 응답은 주어진 JSON 스키마 형식 하나만 반환한다. 설명, 인사말, 마크다운 코드블록 등 다른 텍스트는 포함하지 않는다.
 - cards: 입력 항목마다 정확히 1개씩 만든다. source_id는 입력에 적힌 값을 한 글자도 바꾸지 않고 그대로 복사한다.
   - benefit: 카드 한 장에 크게 들어갈 지원 내용 요약. 40자 이내. 원문에 금액·비율·기간이 있으면 가장 중요한 것을 넣는다.
+  - details: benefit을 보충하는 지원 내용 세부 항목 2~3개. 각 25자 이내의 짧은 명사형 구절. 원문의 지원 내용에서 benefit에 안 쓴 구체적인 정보(한도·기간·방식·횟수·제공 프로그램 등)를 고른다. benefit과 같은 말을 반복하지 않는다. 원문에 쓸 만한 세부 정보가 없으면 지원 방식·이용 방법을 원문 표현대로 옮긴다.
   - target: 지원 대상 요약. 40자 이내. 나이·거주지·소득 같은 핵심 조건 위주.
   - subtitle: 이 혜택을 한 줄로 소개하는 문구. 20자 안팎.
   - caption: 독자가 "나도 해당되나?" 하고 멈추게 만드는 한 문장 코멘트. 30자 안팎.
@@ -104,8 +105,13 @@ export const CARD_NEWS_RESPONSE_SCHEMA = {
           caption: { type: 'string' },
           benefit: { type: 'string', description: '지원 내용 요약, 40자 이내, 원문 숫자만' },
           target: { type: 'string', description: '지원 대상 요약, 40자 이내, 원문 숫자만' },
+          details: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '지원 내용 세부 항목 2~3개, 각 25자 이내, 원문 숫자만',
+          },
         },
-        required: ['source_id', 'subtitle', 'caption', 'benefit', 'target'],
+        required: ['source_id', 'subtitle', 'caption', 'benefit', 'target', 'details'],
       },
     },
     cta_card: {
@@ -133,6 +139,7 @@ export const CARD_NEWS_ZOD_SCHEMA = z.object({
       caption: z.string(),
       benefit: z.string(),
       target: z.string(),
+      details: z.array(z.string()),
     }),
   ),
   cta_card: z.object({

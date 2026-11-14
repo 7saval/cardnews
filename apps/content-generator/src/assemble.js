@@ -4,6 +4,32 @@
 // 카드 순서와 개수도 LLM 응답이 아니라 수집 결과를 따른다 — LLM이 카드를 빠뜨리거나, 없는
 // source_id를 지어내거나, 같은 항목을 두 번 쓰면 에러로 돌려서 재생성하게 한다.
 
+// 보조금24 신청방법 값 → 카드 표시 문구. "직접입력"은 입력 방식 이름일 뿐 정보가 없어서 뺀다.
+const APPLY_METHOD_LABELS = { '기타 온라인신청': '온라인 신청', 직접입력: null };
+
+// 원문 필드에 값이 여러 개면 "||"로 이어져 온다 (예: "방문신청||직접입력")
+const splitValues = (text) => (text ?? '').split('||').map((v) => v.trim()).filter(Boolean);
+
+/** 수집 원문의 신청방법을 카드 표시용으로 ("방문 신청, 온라인 신청"). 없거나 의미 없는 값뿐이면 null */
+export function applyMethodOf(record) {
+  const labels = splitValues(record.raw?.apply_method)
+    .map((v) => (v in APPLY_METHOD_LABELS ? APPLY_METHOD_LABELS[v] : v.replace(/(\S)신청$/, '$1 신청')))
+    .filter(Boolean);
+  return labels.length ? [...new Set(labels)].join(', ') : null;
+}
+
+/**
+ * 수집 원문의 문의처 "기관/전화"를 카드 표시용으로 ("서민금융콜센터 1397").
+ * 여러 개면 첫 번째만 쓴다 — 카드 칸이 좁고, 나머지는 원문 링크에 있다.
+ */
+export function contactOf(record) {
+  const first = splitValues(record.raw?.contact)[0];
+  return first ? first.replace(/\s*\/\s*/g, ' ') : null;
+}
+
+// 카드 한 장에 들어가는 세부 항목 최대 개수 (레이아웃 기준)
+const MAX_DETAILS = 3;
+
 /**
  * @param {object} copy  LLM 응답 (prompt.js의 응답 스키마)
  * @param {import('../../../shared/schemas/benefit').CollectedBenefits} collected
@@ -39,6 +65,11 @@ export function assembleCardNews(copy, collected, { handle, today }) {
       caption: c.caption,
       benefit: c.benefit,
       target: c.target,
+      ...(Array.isArray(c.details)
+        ? { details: c.details.map((d) => d.trim()).filter(Boolean).slice(0, MAX_DETAILS) }
+        : {}),
+      apply_method: applyMethodOf(record),
+      contact: contactOf(record),
       category: record.category,
       period_text: record.period_text,
       period_end: record.period_end,

@@ -10,6 +10,34 @@ export const CAPTION_LIMIT = 2200;
 export const CAPTION_NOTICE =
   '※ 비공식 큐레이션 계정이에요. 지원 조건·금액은 바뀔 수 있으니 신청 전 원문 공고를 꼭 확인하세요.';
 
+// 매 회차 공통 해시태그. 인스타그램은 게시물당 30개까지라 공통 + 회차별을 합쳐 15개 안쪽으로 둔다.
+export const BASE_HASHTAGS = [
+  '정부지원금',
+  '정부혜택',
+  '청년정책',
+  '청년지원',
+  '청년혜택',
+  '지원금',
+  '복지혜택',
+  '생활꿀팁',
+  '핫수집',
+];
+
+/** 해시태그에 쓸 수 없는 문자(공백·가운뎃점 등)를 뺀다: "고용·창업" → "고용창업" */
+const toTag = (text) => text.replace(/[^\p{L}\p{N}_]/gu, '');
+
+/**
+ * 회차 해시태그: 공통 태그 + 카테고리("#생활안정") 또는 자치구("서울특별시 동작구" → "#동작구").
+ * 중복은 뺀다.
+ */
+export function buildHashtags(data) {
+  const extra = [];
+  if (data.category) extra.push(data.category, `${data.category}지원`);
+  if (data.region) extra.push(data.region.split(/\s+/).at(-1));
+  const tags = [...BASE_HASHTAGS, ...extra].map(toTag).filter(Boolean);
+  return [...new Set(tags)].map((t) => `#${t}`).join(' ');
+}
+
 /**
  * @param {import('../../../shared/schemas/card-news').CardNewsData} data
  * @returns {string}
@@ -20,15 +48,19 @@ export function buildCaption(data) {
       `${c.order}. ${c.title}`,
       `· ${c.benefit}`,
       `· 대상: ${c.target}`,
-      `· 신청: ${c.period_end ? `${c.period_end}까지` : c.period_text}`,
+      `· 신청: ${c.period_end ? `${c.period_end}까지` : c.period_text}${c.apply_method ? ` (${c.apply_method})` : ''}`,
+      c.contact && `· 문의: ${c.contact}`,
       `· 원문: ${c.source_url}`,
-    ].join('\n'),
+    ]
+      .filter(Boolean)
+      .join('\n'),
   );
   const caption = [
     data.series_title,
     data.hook_line.split('\n').join(' '),
     ...cards,
     `${CAPTION_NOTICE}\n출처: ${data.data_source}`,
+    buildHashtags(data),
   ].join('\n\n');
 
   if (caption.length > CAPTION_LIMIT) {

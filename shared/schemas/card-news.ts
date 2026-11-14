@@ -28,6 +28,15 @@ export interface CardNewsItem {
   benefit: string;
   /** 대상 요약. 예: "서울 거주 39세 이하 청년" (LLM 요약 + 검증) */
   target: string;
+  /**
+   * 지원 내용 세부 항목 0~3개 (LLM 요약 + 검증). 카드 가운데 목록으로 들어간다.
+   * 2026-11-14 추가 — 이전 회차 JSON에는 없다.
+   */
+  details?: string[];
+  /** 신청 방법 표시 문구. 예: "방문 신청", "온라인 신청". 정보가 없으면 null (코드, 2026-11-14 추가) */
+  apply_method?: string | null;
+  /** 문의처 "기관 전화". 예: "서민금융콜센터 1397". 없으면 null (코드, 2026-11-14 추가) */
+  contact?: string | null;
   /** 서비스분야 (코드) */
   category: string;
   /** 신청기한 원문 (코드) */

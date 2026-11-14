@@ -44,6 +44,15 @@ export function assertValidCardNewsData(data, source) {
       for (const f of ITEM_STRING_FIELDS) {
         if (typeof c[f] !== 'string') errors.push(`cards[${i}].${f}(string)이 없습니다`);
       }
+      // 2026-11-14에 추가된 필드라 없어도 되지만, 있으면 형식은 맞아야 한다
+      if ('details' in c && !(Array.isArray(c.details) && c.details.every((d) => typeof d === 'string'))) {
+        errors.push(`cards[${i}].details는 문자열 배열이어야 합니다`);
+      }
+      for (const f of ['apply_method', 'contact']) {
+        if (f in c && c[f] !== null && typeof c[f] !== 'string') {
+          errors.push(`cards[${i}].${f}는 string 또는 null이어야 합니다`);
+        }
+      }
       if (typeof c.source_id === 'string' && !SOURCE_ID_RE.test(c.source_id)) {
         errors.push(`cards[${i}].source_id는 "<소스>:<ID>" 형식이어야 합니다 (예: gov24:B55400900001)`);
       }

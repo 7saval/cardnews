@@ -197,3 +197,20 @@ test('checkFreshness: 삭제·신청기한 변경·수정일시 변경은 실패
     ],
   );
 });
+
+test('checkFacts: details 항목의 숫자도 원문과 대조한다', () => {
+  const ok = checkFacts(withCard(1, { details: ['직무교육 후 협력사 취업연계'] }), collected, { today: TODAY });
+  assert.equal(ok.ok, true);
+  const bad = checkFacts(withCard(1, { details: ['직무교육 후 취업연계', '훈련수당 주당 30만원'] }), collected, {
+    today: TODAY,
+  });
+  assert.equal(bad.ok, false);
+  assert.equal(bad.errors[0].field, 'details');
+  assert.match(bad.errors[0].message, /30만원/);
+});
+
+test('checkFacts: 신청방법·문의처가 원문과 다르면 실패', () => {
+  const result = checkFacts(withCard(1, { contact: '지어낸 기관 1234-5678' }), collected, { today: TODAY });
+  assert.equal(result.ok, false);
+  assert.equal(result.errors[0].field, 'contact');
+});

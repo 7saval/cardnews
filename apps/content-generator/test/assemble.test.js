@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { assembleCardNews } from '../src/assemble.js';
+import { assembleCardNews, applyMethodOf, contactOf } from '../src/assemble.js';
 import { buildUserMessage } from '../src/prompt.js';
 import { assertValidCardNewsData } from '../../../shared/schemas/validate-card-news.js';
 import { assertValidCollectedBenefits } from '../../../shared/schemas/validate-benefits.js';
@@ -79,4 +79,26 @@ test('buildUserMessage: 항목마다 source_id와 원문을 넣고, 긴 원문�
   const long = structuredClone(collected);
   long.items[0].raw.support_content = '가'.repeat(3000);
   assert.match(buildUserMessage(long), /…\(이하 생략\)/);
+});
+
+test('assembleCardNews: details는 다듬어서 최대 3개, 없으면 필드를 만들지 않는다', () => {
+  const copy = llmCopy();
+  copy.cards[0].details = [' 첫째 ', '', '둘째', '셋째', '넷째'];
+  const { data } = assembleCardNews(copy, collected, OPTIONS);
+  const card = data.cards.find((c) => c.source_id === copy.cards[0].source_id);
+  assert.deepEqual(card.details, ['첫째', '둘째', '셋째']);
+  const other = data.cards.find((c) => c.source_id === copy.cards[1].source_id);
+  assert.equal('details' in other, false);
+});
+
+test('applyMethodOf·contactOf: 원문 값을 카드 표시용으로', () => {
+  const rec = (apply_method, contact) => ({ raw: { apply_method, contact } });
+  assert.equal(applyMethodOf(rec('방문신청')), '방문 신청');
+  assert.equal(applyMethodOf(rec('기타 온라인신청')), '온라인 신청');
+  assert.equal(applyMethodOf(rec('직접입력')), null);
+  assert.equal(applyMethodOf(rec('방문신청||직접입력||기타 온라인신청')), '방문 신청, 온라인 신청');
+  assert.equal(applyMethodOf(rec(null)), null);
+  assert.equal(contactOf(rec(null, '서민금융콜센터/1397')), '서민금융콜센터 1397');
+  assert.equal(contactOf(rec(null, '근로복지공단/1588-0075||국민연금공단/1355')), '근로복지공단 1588-0075');
+  assert.equal(contactOf(rec(null, null)), null);
 });

@@ -9,8 +9,10 @@
 // 다른 조건에 붙인 경우, 같은 값의 다른 표기("100분의 50" ↔ "50%"). 이런 건 발행 전 사람 검수
 // 체크리스트로 넘긴다.
 
-// LLM이 쓰는 카드 필드
-const COPY_FIELDS = ['subtitle', 'caption', 'benefit', 'target'];
+import { applyMethodOf, contactOf } from './assemble.js';
+
+// LLM이 쓰는 카드 필드 (details는 문자열 배열 — 항목별로 대조한다)
+const COPY_FIELDS = ['subtitle', 'caption', 'benefit', 'target', 'details'];
 // 코드가 수집 결과에서 그대로 복사하는 필드 [카드 필드, 수집 결과 필드]
 const INJECTED_FIELDS = [
   ['title', 'title'],
@@ -148,14 +150,24 @@ export function checkFacts(data, collected, { today }) {
       }
     }
 
+    // 신청방법·문의처는 원문을 표시용으로 다듬어 주입한다 — 같은 규칙으로 다시 만들어 비교
+    for (const [cardField, derive] of [['apply_method', applyMethodOf], ['contact', contactOf]]) {
+      if (cardField in card && card[cardField] !== derive(record)) {
+        err(cardField, `원문 값과 다릅니다 (카드: ${JSON.stringify(card[cardField])}, 원문: ${JSON.stringify(derive(record))})`);
+      }
+    }
+
     if (card.period_end && card.period_end < today) {
       err('period_end', `마감일(${card.period_end})이 실행일(${today})보다 이릅니다`);
     }
 
     const sourceText = sourceTextOf(record);
     for (const field of COPY_FIELDS) {
-      for (const c of unsupportedClaims(card[field], sourceText)) {
-        err(field, `원문에 없는 숫자: "${c.text}"`);
+      const texts = Array.isArray(card[field]) ? card[field] : [card[field]];
+      for (const text of texts) {
+        for (const c of unsupportedClaims(text, sourceText)) {
+          err(field, `원문에 없는 숫자: "${c.text}"`);
+        }
       }
     }
   }

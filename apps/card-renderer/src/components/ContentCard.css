@@ -31,7 +31,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 56px 56px 48px;
+  padding: 48px 52px 40px;
   border-radius: 40px;
   background: #fff;
   color: #1f1f1f;
@@ -41,46 +41,118 @@
 /* 한 줄 정책명이면 아래 부제가 바로 붙도록 높이 대신 max-height (FitText는 이 값 기준으로 줄인다) */
 .content-card__title {
   flex: 0 0 auto;
-  max-height: 168px;
+  max-height: 152px;
   font-weight: 900;
   line-height: 1.25;
   letter-spacing: -0.02em;
 }
 
 .content-card__subtitle {
-  flex: 0 0 52px;
-  margin-top: 8px;
+  flex: 0 0 46px;
+  margin-top: 6px;
   font-weight: 500;
   color: #6b6b6b;
   white-space: nowrap;
 }
 
 .content-card__label {
-  margin-top: 40px;
-  margin-bottom: 8px;
-  font-size: 28px;
+  flex: 0 0 auto;
+  margin-top: 28px;
+  margin-bottom: 6px;
+  font-size: 26px;
   font-weight: 900;
 }
 
-/* 남는 높이를 모두 혜택 문구에 준다 — 카드에서 가장 크게 보여야 하는 정보 */
+.content-card__label--first {
+  margin-top: 32px;
+}
+
+/* 카드에서 가장 크게 보여야 하는 정보. 두 줄까지 */
 .content-card__benefit {
-  flex: 1 1 0;
-  min-height: 0;
+  flex: 0 0 auto;
+  max-height: 140px;
   font-weight: 900;
   line-height: 1.3;
   letter-spacing: -0.02em;
 }
 
+/* 세부 항목: 남는 높이를 모두 가져가고, 글자가 적으면 박스 안에서 가운데 정렬 */
+.content-card__details {
+  flex: 1 1 0;
+  min-height: 0;
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.content-card__details-list {
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 20px 32px;
+  border-radius: 24px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+  gap: 0.45em;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #2b2b2b;
+}
+
+.content-card__details-list li {
+  display: flex;
+  gap: 0.5em;
+}
+
+.content-card__check {
+  flex-shrink: 0;
+  font-weight: 900;
+}
+
+.content-card__spacer {
+  flex: 1 1 0;
+}
+
 .content-card__target {
-  flex: 0 0 140px;
+  flex: 0 0 auto;
+  max-height: 96px;
   font-weight: 700;
   line-height: 1.35;
   color: #333;
 }
 
-.content-card__caption {
-  flex: 0 0 72px;
+/* 신청 · 문의 두 칸 */
+.content-card__info {
+  flex: 0 0 auto;
   margin-top: 28px;
+  padding-top: 24px;
+  border-top: 2px solid #eee;
+  display: flex;
+  gap: 32px;
+}
+
+.content-card__info-cell {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.content-card__info-label {
+  font-size: 24px;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.content-card__info-value {
+  height: 80px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #333;
+}
+
+.content-card__caption {
+  flex: 0 0 64px;
+  margin-top: 20px;
   white-space: nowrap;
   display: flex;
   align-items: center;
@@ -88,7 +160,7 @@
 
 .content-card__caption-inner {
   display: inline-block;
-  padding: 10px 24px;
+  padding: 8px 24px;
   border-radius: 16px;
   font-weight: 700;
   color: #333;
