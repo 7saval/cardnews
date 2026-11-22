@@ -1,0 +1,112 @@
+name: notify-failure
+
+# benefits-weekly·insights-daily가 실패하면 GitHub 이슈로 알린다.
+# 알림이 없어서 insights-daily 실패를 7주(2026-09~11), benefits-weekly 실패를 6일(11-16~11-22) 동안 몰랐다.
+#
+# - 실패: 워크플로별 열린 이슈("[실패] <워크플로>")가 없으면 새로 만들고 저장소 주인에게 할당한다.
+#   이미 열려 있으면(연속 실패) 새 이슈 대신 댓글을 단다 — 매일 도는 insights-daily가 이슈를 쌓지 않게
+# - 성공: 그 워크플로의 열린 이슈가 있으면 "복구됨" 댓글을 달고 닫는다
+# - 수동 취소(cancelled)·건너뜀은 알리지 않는다
+#
+# 감시하는 워크플로와 별도로 돌아서 기존 워크플로의 권한(contents: read)은 그대로 둔다.
+on:
+  workflow_run:
+    workflows: [benefits-weekly, insights-daily]
+    types: [completed]
+
+permissions:
+  issues: write
+  actions: read # 실패한 단계 이름과 로그를 읽기 위해
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: contains(fromJSON('["failure", "timed_out", "startup_failure", "success"]'), github.event.workflow_run.conclusion)
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      OWNER: ${{ github.repository_owner }}
+      WORKFLOW: ${{ github.event.workflow_run.name }}
+      CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+      EVENT: ${{ github.event.workflow_run.event }}
+      STARTED_AT: ${{ github.event.workflow_run.run_started_at }}
+      LABEL: workflow-failure
+    steps:
+      - name: Find open failure issue
+        id: find
+        run: |
+          title="[실패] $WORKFLOW"
+          number=$(gh issue list --repo "$REPO" --state open --label "$LABEL" --limit 50 \
+            --json number,title -q "map(select(.title == \"$title\")) | first | .number // empty" 2>/dev/null || true)
+          echo "title=$title" >> "$GITHUB_OUTPUT"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          echo "열린 이슈: ${number:-없음}"
+
+      - name: Report failure
+        if: env.CONCLUSION != 'success'
+        env:
+          TITLE: ${{ steps.find.outputs.title }}
+          NUMBER: ${{ steps.find.outputs.number }}
+        run: |
+          started_kst=$(TZ=Asia/Seoul date -d "$STARTED_AT" '+%Y-%m-%d %H:%M KST')
+
+          # 실패한 job·단계 이름
+          failed_steps=$(gh run view "$RUN_ID" --repo "$REPO" --json jobs -q '
+            .jobs[] | select(.conclusion != "success" and .conclusion != "skipped")
+            | "- **\(.name)**: " + ([.steps[] | select(.conclusion == "failure") | .name] | join(", "))' || true)
+
+          # 실패 단계 로그 끝부분 (타임스탬프·job/단계 접두어 제거). 시크릿은 Actions가 이미 *** 로 가린다
+          log_tail=$(gh run view "$RUN_ID" --repo "$REPO" --log-failed 2>/dev/null \
+            | sed -E 's/^[^\t]*\t[^\t]*\t[0-9TZ:.-]+ //' \
+            | grep -vE '^\s*$|^##\[group\]|^##\[endgroup\]|DeprecationWarning|trace-deprecation' \
+            | grep -B40 -m1 -E '##\[error\]' | tail -40 || true)
+
+          [ -n "$failed_steps" ] || failed_steps='(가져오지 못함 — 실행 페이지에서 확인)'
+          [ -n "$log_tail" ] || log_tail='(로그를 가져오지 못함)'
+
+          # run 블록은 YAML이 들여쓰기를 걷어내므로 아래 heredoc 본문과 EOF는 실제로 0열에서 시작한다
+          body=$(cat <<EOF
+          | | |
+          |---|---|
+          | 워크플로 | \`$WORKFLOW\` |
+          | 결과 | \`$CONCLUSION\` |
+          | 시작 | $started_kst |
+          | 트리거 | \`$EVENT\` |
+          | 실행 | $RUN_URL |
+
+          **실패한 단계**
+          $failed_steps
+
+          <details><summary>로그 끝부분</summary>
+
+          \`\`\`
+          $log_tail
+          \`\`\`
+          </details>
+          EOF
+          )
+
+          if [ -n "$NUMBER" ]; then
+            gh issue comment "$NUMBER" --repo "$REPO" --body "### 또 실패했습니다
+          $body"
+            echo "기존 이슈 #$NUMBER에 댓글"
+          else
+            gh label create "$LABEL" --repo "$REPO" --color d73a4a \
+              --description "예약 워크플로 실패 알림 (notify-failure)" --force
+            gh issue create --repo "$REPO" --title "$TITLE" --label "$LABEL" --assignee "$OWNER" \
+              --body "$body
+
+          ---
+          다음 실행이 성공하면 이 이슈는 자동으로 닫힙니다. 연속으로 실패하면 여기에 댓글이 달립니다."
+          fi
+
+      - name: Close on recovery
+        if: env.CONCLUSION == 'success' && steps.find.outputs.number != ''
+        env:
+          NUMBER: ${{ steps.find.outputs.number }}
+        run: |
+          started_kst=$(TZ=Asia/Seoul date -d "$STARTED_AT" '+%Y-%m-%d %H:%M KST')
+          gh issue close "$NUMBER" --repo "$REPO" --reason completed \
+            --comment "✅ 복구됨 — $started_kst 실행이 성공했습니다: $RUN_URL"
