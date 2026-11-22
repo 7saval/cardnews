@@ -44,7 +44,7 @@
 | [`apps/image-matcher`](apps/image-matcher) | 💤 미사용 | 맛집 주제 시절 가게 사진 연결·허락 요청 대상 찾기. 주제 전환으로 쓰지 않음 |
 | [`scripts/pipeline.js`](scripts/pipeline.js) | ✅ | 위 세 앱(고르기 → 문구 → 그리기)을 **한 명령으로 이어 실행**. 결과를 한 폴더에 모음 |
 | [`shared/schemas`](shared/schemas) | ✅ | 앱 사이에 주고받는 JSON 형식 정의(`benefit.ts`, `card-news.ts`)와 검증 코드 |
-| [`.github/workflows`](.github/workflows) | ✅ | 자동 실행 예약 (`benefits-weekly`, `insights-daily`) |
+| [`.github/workflows`](.github/workflows) | ✅ | 자동 실행 예약 (`benefits-weekly`, `insights-daily`), 실패 알림 (`notify-failure`) |
 | [`design-reference`](design-reference) | ✅ | 카드 레이아웃 스펙 |
 
 ---
@@ -243,7 +243,7 @@ npm run pipeline -- --handle hotsoozip                                 # 수집 
 | 결과 검수 | 🙋 사람 (자동 게시 후에도 사람 승인 단계로 남길 예정) |
 | 인스타 게시 | 🙋 사람 → `publisher`로 자동화 예정 |
 | 발행 기록 | 🙋 사람 → 게시와 함께 자동화 예정 |
-| 실패 알림 | ❌ 없음 |
+| 실패 알림 | ✅ 자동 — 실패하면 GitHub 이슈 `[실패] <워크플로>` 생성(주인에게 할당), 다음 성공 시 자동으로 닫힘 ([`notify-failure`](.github/workflows/notify-failure.yml)) |
 | 성과 대시보드 | ❌ 미착수 |
 | Meta 토큰 교체 | 🙋 두 달마다 사람 → 자동화 예정 |
 
