@@ -1,10 +1,29 @@
 # research-collector
 
+> 💤 **지금은 쓰지 않는 앱이다.** 맛집 주제 시절(2026-09~10)의 1단계였다. 2026-10-06 혜택 주제 전환 이후
+> 1단계는 `benefit-collector`가 맡고, `content-generator`도 이 앱의 텍스트 출력(`*-adopted-*.txt`)이 아니라
+> 혜택 JSON(`*-adopted.json`)을 입력으로 받는다. 기록과 참고용으로 남겨 둔다.
+
 카카오 로컬 API(장소 후보) + NAVER API HUB 검색어트렌드 API(트렌드 랭킹)를 합쳐서
-"채택할 소재 리스트"를 뽑는 CLI. 파이프라인의 1단계 — 이 앱의 출력이
-`content-generator`의 입력이 된다.
+"채택할 소재 리스트"를 뽑는 CLI. 당시 파이프라인의 1단계였다.
 
 전체 아키텍처와 각 단계의 설계 배경은 `_docs/insta-cardnews-automation-plan.md` 참고.
+
+## 파일 구성
+
+| 파일 | 역할 |
+|---|---|
+| `src/collect.js` | **실행 진입점** (`npm run collect`). 주제별 네이버 트렌드 조회 → 모멘텀 랭킹 → 카카오 장소 후보 수집 → 상위 주제 채택·저장 |
+| `src/test-kakao-local.js` | 카카오 로컬 API 키 확인용 스모크 테스트 (`npm run test:kakao`) |
+| `src/test-naver-trend.js` | 네이버 검색어트렌드 API 키 확인용 스모크 테스트 (`npm run test:naver-trend`) |
+| `data/topics.json` | 사람이 채우는 주제 목록 (이름, 카카오 검색어, 네이버 트렌드 키워드) |
+
+## 정상 동작 순서 (당시 기준)
+
+1. `npm install`, `.env`에 카카오·네이버 키
+2. `npm run test:kakao -- --query "강남 야장"`, `npm run test:naver-trend`로 키 확인
+3. `data/topics.json`에 주제 추가
+4. `npm run collect` → `output/*-adopted-*.txt`
 
 ## 준비
 
@@ -81,7 +100,7 @@ npm run test:kakao -- --query "강남 야장"   # 카카오 로컬 API 단독 �
 npm run test:naver-trend                    # 네이버 검색어트렌드 단독 호출
 ```
 
-## 다음 단계로 이어서 확인
+## 다음 단계로 이어서 확인 (당시 기준 — 지금의 content-generator는 텍스트 입력을 받지 않는다)
 
 ```bash
 cd ../content-generator

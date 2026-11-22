@@ -1,103 +1,109 @@
 # insights-collector
 
-Meta Graph API로 인스타그램 비즈니스 계정의 팔로워 수·인사이트를 수집하는 앱.
-Phase 2 담당 — 발행 자동화(Phase 4)보다 먼저 붙여서, 자동화 도입 전/후 비교를 위한
-베이스라인 데이터를 최대한 일찍부터 모으는 게 목적.
+**성적 기록.** Meta Graph API로 인스타그램 비즈니스 계정의 하루치 성과(팔로워 수·도달·참여)를 조회해
+Supabase `daily_insights` 테이블에 쌓는 앱. 자동화 도입 전/후를 비교할 **베이스라인 데이터**를 모으는 게 목적이라,
+발행 자동화(publisher)보다 먼저 붙였다.
 
-**현재 상태**: API 연동 확인 완료. `npm run collect`(일일 배치) + GitHub Actions 크론
-(`.github/workflows/insights-daily.yml`, 매일 KST 00:30) 작성 완료.
+- **자동 실행**: GitHub Actions `insights-daily` (`.github/workflows/insights-daily.yml`), 매일 예약 KST 00:30
+  (GitHub 사정으로 실제로는 새벽~아침에 돈다)
+- **데이터 상태**: 2026-11-13부터 정상 적재 중. 2026-09-28~11-13은 Meta 쪽 `API access blocked`로 실패했다 (원인 불명, 11-14 복구)
+- **사람 할 일**: 두 달에 한 번 장기 토큰 교체 (다음 만료 **2027-01-13**)
 
-설계 배경은 `_docs/insta-cardnews-automation-plan.md`의 "Phase 2" 섹션 참고 —
-단, 거기 적힌 DB 스키마(`impressions`, `profile_views` 컬럼)는 **현재 API와 안 맞음**.
-아래 "계획서와 달라진 점" 참고.
+설계 배경은 `_docs/insta-cardnews-automation-plan.md`의 "Phase 2" 섹션 — 단, 거기 적힌 메트릭 일부는 현재 API와 다르다
+(아래 "계획서와 달라진 점").
 
-## 준비
+## 파일 구성
 
-1. 의존성 설치
+| 파일 | 역할 |
+|---|---|
+| `src/collect.js` | **실행 진입점** (`npm run collect`). 집계 날짜(기본: KST 어제)의 구간 계산 → 계정 필드(팔로워 수) → 일별 인사이트 메트릭 → 그날 게시물 수 → `daily_insights`에 날짜 기준 upsert |
+| `src/test-insights.js` | 연결 확인용 스모크 테스트 (`npm run test:insights`). 계정 필드와 인사이트 메트릭이 조회되는지만 본다. DB에 쓰지 않음 |
+| `src/exchange-token.js` | 토큰 교환 (`npm run exchange-token`). Graph API Explorer에서 받은 단기 토큰(1~2시간) → 60일 장기 토큰으로 바꿔 `.env`를 갱신 |
+| `.env.example` | 필요한 환경변수 목록 |
 
-   ```bash
-   npm install
-   ```
+`daily_insights`에 저장하는 값: `date`(PK), `followers_count`, `reach`, `accounts_engaged`, `total_interactions`,
+`posts_count_today`, `is_automated`(지금은 항상 `false` — publisher가 생기면 자동 게시일부터 `true`).
 
-2. `.env` 생성 (`.env.example` 참고)
+## 정상 동작 순서
 
-   ```
-   META_ACCESS_TOKEN=
-   IG_BUSINESS_ACCOUNT_ID=
+### 1. 준비 (처음 한 번)
 
-   # npm run exchange-token 에서만 필요
-   META_APP_ID=
-   META_APP_SECRET=
-   ```
+```bash
+npm install
+cp .env.example .env   # 값 채우기
+```
 
-   - `META_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID`는 Meta 개발자 콘솔의 Graph API Explorer에서 발급
-     (Facebook 페이지에 연결된 IG 비즈니스 계정 필요 — 설정 과정에서 `instagram_manage_insights` 권한을
-     앱에 추가해야 `instagram_business_account` 필드/인사이트 조회가 됨. 앱 대시보드 → 이용 사례 →
-     "Facebook 로그인이 포함된 API" → 권한 및 기능에서 추가)
-   - `META_APP_ID`/`META_APP_SECRET`은 앱 설정 > 기본 설정에서 확인 (장기 토큰 교환용, 당장 없어도
-     스모크 테스트는 가능)
+```
+META_ACCESS_TOKEN=
+IG_BUSINESS_ACCOUNT_ID=
+META_APP_ID=                 # exchange-token에서만 필요
+META_APP_SECRET=             # exchange-token에서만 필요
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=   # service_role 키 — 절대 커밋하거나 브라우저에 노출하지 말 것
+```
 
-## 실행
+- `META_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID`는 Meta 개발자 콘솔의 Graph API Explorer에서 발급
+  (Facebook 페이지에 연결된 IG 비즈니스 계정 필요. `instagram_manage_insights` 권한을 앱에 추가해야
+  `instagram_business_account` 필드·인사이트 조회가 된다. 앱 대시보드 → 이용 사례 → "Facebook 로그인이 포함된 API" →
+  권한 및 기능에서 추가)
+- `META_APP_ID`/`META_APP_SECRET`은 앱 설정 > 기본 설정에서 확인
 
-### 1. API 연동 확인 (스모크 테스트)
+### 2. 장기 토큰으로 교환
+
+Explorer에서 받은 토큰은 1~2시간이면 만료된다. 매일 자동으로 돌리려면 60일짜리로 바꿔야 한다.
+
+```bash
+npm run exchange-token   # 성공하면 .env의 META_ACCESS_TOKEN을 장기 토큰으로 교체
+```
+
+> **주의**: 이미 장기 토큰인 걸 다시 교환하면 만료일이 늘지 않는다. **반드시 Explorer에서 새 단기 토큰을 받아서** 교환한다.
+
+### 3. 연결 확인
 
 ```bash
 npm run test:insights
 ```
 
-두 가지를 확인한다:
-1. 계정 필드 조회 (`GET /{ig-user-id}?fields=username,followers_count,media_count`) — 팔로워 수는
-   `/insights` 메트릭이 아니라 계정 자체 필드라서 별도 조회
-2. 일별 인사이트 메트릭 (`reach`, `accounts_engaged`, `total_interactions`)
-
 ```
-✔ @hotsoozip | 팔로워 0명 | 게시물 0개
-  - reach: 0
-  - accounts_engaged: 0
-  - total_interactions: 0
+✔ @hotsoozip | 팔로워 N명 | 게시물 N개
+  - reach: …
+  - accounts_engaged: …
+  - total_interactions: …
 ```
 
-### 2. 일일 수집 → Supabase 적재
+실패하면 범위를 좁혀 본다: 토큰 디버거(유효·권한) → `me` → `me/accounts` → IG 계정 필드 → `/insights` 순서.
+
+### 4. 수집해서 DB에 저장
 
 ```bash
-npm run collect                        # KST 기준 어제 하루치
-npm run collect -- --date 2026-09-27   # 특정 날짜 재수집
 npm run collect -- --dry-run           # DB에 쓰지 않고 조회 결과만 출력
+npm run collect                        # KST 기준 어제 하루치 저장
+npm run collect -- --date 2026-11-20   # 특정 날짜 재수집
 ```
 
-`daily_insights`에 `date` 기준 upsert하므로 같은 날짜로 재실행해도 안전하다.
-인사이트 메트릭은 `since/until`로 해당 날짜(KST 00:00~24:00) 구간을 고정해 조회하지만,
-`followers_count`는 계정 필드라 **실행 시점의 스냅샷**이다 (크론이 자정 직후에 도는 이유).
-`posts_count_today`는 `/media`의 `timestamp`로 해당 구간 게시물 수를 센다.
+- `date` 기준 upsert라 같은 날짜로 다시 돌려도 중복되지 않고 덮어쓴다.
+- 인사이트 메트릭은 해당 날짜(KST 00:00~24:00) 구간으로 고정 조회하지만, `followers_count`는 계정 필드라
+  **실행 시점의 값**이다 (그래서 자정 직후에 돌게 예약했다). 과거 날짜를 재수집해도 팔로워 수는 "지금" 값이 들어간다.
 
-GitHub Actions에서 돌리려면 저장소 Secrets에 `META_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID`,
-`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` 등록 필요. Actions 탭에서 수동 실행(날짜 지정)도 가능.
+### 5. GitHub Actions 등록 (자동 실행)
 
-### 3. 장기 토큰으로 교환 (단기 토큰은 ~1-2시간 후 만료)
+저장소 Secrets에 `META_ACCESS_TOKEN`, `IG_BUSINESS_ACCOUNT_ID`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`를 등록한다.
+Actions 탭에서 수동 실행(날짜 지정)도 된다.
 
-```bash
-npm run exchange-token
-```
-
-성공하면 `.env`의 `META_ACCESS_TOKEN`을 60일짜리 장기 토큰으로 자동 교체한다. 크론으로
-자동화하려면 이 장기 토큰이 필요 (또는 60일마다 재교환 로직 필요 — 아직 미구현).
+**토큰을 교체할 때마다** `.env`뿐 아니라 GitHub Secret `META_ACCESS_TOKEN`도 갱신하고, 수동 실행으로 성공을 확인한다.
 
 ## 계획서와 달라진 점
 
-계획 수립 당시(`_docs/insta-cardnews-automation-plan.md`) 가정한 메트릭 중 일부가 현재 API에서
-사용 불가능해졌다:
+계획 수립 당시 가정한 메트릭 일부가 현재 API에서 쓸 수 없다:
 
 | 계획서 가정 | 현재 상태 |
 |---|---|
 | `impressions` | **폐기됨** (v22.0부터, 2025-04-21부로 전 버전 제거). 대체는 `views` |
-| `profile_views` | **메트릭 자체가 없음**. 가장 가까운 대안은 `profile_links_taps`(프로필 링크 클릭)뿐 |
-| `followers_count` | `/insights` 메트릭이 아니라 계정 필드 — 매일 스냅샷을 직접 찍어서 누적해야 시계열이 됨 |
-| `reach` | 그대로 사용 가능 |
+| `profile_views` | **메트릭 자체가 없음**. 가장 가까운 대안은 `profile_links_taps`(프로필 링크 클릭) |
+| `followers_count` | `/insights` 메트릭이 아니라 계정 필드 — 매일 스냅샷을 찍어 누적해야 시계열이 된다 |
+| `reach` | 그대로 사용 |
 
-`daily_insights` DB 스키마를 구현할 때 이 표 기준으로 컬럼을 다시 정해야 한다 (다음 작업).
+## 남은 일
 
-## 다음 작업
-
-- [x] `daily_insights` DB 스키마 재설계 (위 표 반영: `impressions`→`views`, `profile_views` 제거/대체)
-- [x] GitHub Actions 크론 배치 스크립트 (`npm run collect`, 매일 계정 필드+인사이트 조회 → upsert)
-- [ ] 장기 토큰 60일 만료 대응 (알림 또는 자동 재교환)
+- [ ] 장기 토큰 만료 대응 자동화 (만료 임박 알림 또는 시스템 사용자 토큰)
+- [ ] 수집 실패 알림 — 2026-09~11에 7주 동안 실패를 몰랐다

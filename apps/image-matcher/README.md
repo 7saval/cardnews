@@ -1,7 +1,33 @@
 # image-matcher
 
+> 💤 **지금은 쓰지 않는 앱이다.** 맛집 주제 시절(2026-09~10)의 모듈로, 2026-10-06 혜택 주제 전환 이후
+> 파이프라인(`scripts/pipeline.js`)에서 빠졌다. 혜택 카드는 사진 대신 카테고리별 그라디언트를 쓴다.
+> 카드 스키마의 장소·이미지 필드(`place_name`, `image_url` 등)와 `card-renderer`의 `/__images` 서빙도 함께 삭제돼서,
+> 지금 코드 그대로는 현재 카드뉴스 JSON에 쓸 수 없다. 기록과 참고용으로 남겨 둔다 (`_docs/topic-pivot-benefits-plan.md` §6.6).
+
 카드뉴스 JSON의 장소별로 **허락받은 사진**을 찾아 카드 배경(`image_url`)과 출처(`image_credit`)를
-채우는 CLI. Phase 3 담당 — 파이프라인에서 `content-generator`와 `card-renderer` 사이에 들어간다.
+채우는 CLI. Phase 3 담당 — 당시 파이프라인에서 `content-generator`와 `card-renderer` 사이에 들어갔다.
+
+## 파일 구성
+
+| 파일 | 역할 |
+|---|---|
+| `src/match.js` | **사진 연결 CLI** (`npm run match`). `--init`으로 가게별 빈 폴더 준비, 사진·출처가 채워지면 카드 JSON의 `image_url`·`image_credit` 갱신 |
+| `src/find-channels.js` | **허락 요청 대상 찾기 CLI** (`npm run find-channels`). 장소별 가게 인스타·홈페이지 후보와 근거를 체크리스트(md/json)로 출력 |
+| `src/lib/place-folders.js` | `images/places/` 폴더와 카드 장소 짝짓기 (이름 정규화, `place.json` 주소 대조로 동명 가게 방지). 순수 로직 |
+| `src/lib/extract.js` | 검색 결과·HTML에서 인스타 계정·홈페이지 단서 추출. 순수 함수 |
+| `src/lib/naver-search.js` | NAVER API HUB 검색(지역·웹문서·블로그) 호출 |
+| `src/lib/polite-fetch.js` | 가게 홈페이지 크롤링용 fetch — 차단 도메인 거부, robots.txt 확인, 1초 간격, 타임아웃·크기 제한, 요청 기록 |
+| `src/lib/robots.js` | robots.txt 파서 (RFC 9309, 직접 구현) |
+| `test/*.test.js` | `extract`, `robots`, `place-folders` 단위 테스트 |
+
+## 정상 동작 순서 (당시 기준)
+
+1. `npm install`, `.env`에 `NAVER_CLIENT_ID`/`NAVER_CLIENT_SECRET` (find-channels용)
+2. `npm test`로 규칙 확인
+3. `npm run find-channels -- --data <카드 JSON>` → 체크리스트 보고 가게에 사진 사용 허락 요청
+4. `npm run match -- --data <카드 JSON> --init` → 허락받은 사진과 `credit.txt` 채우기
+5. `npm run match -- --data <카드 JSON>` → `card-renderer`로 렌더
 
 ## 원칙: 사진을 자동으로 "가져오지" 않는다
 
@@ -35,7 +61,7 @@ npm run match -- --data ../content-generator/output/<이름>.json
   ✔ CTA: _cta/bg.jpg
 ```
 
-루트의 `npm run pipeline`은 이 단계를 자동으로 거친다. 사진이 하나도 없어도 실패하지 않고, 매칭 안 된
+(당시) 루트의 `npm run pipeline`은 이 단계를 자동으로 거쳤다. 사진이 하나도 없어도 실패하지 않고, 매칭 안 된
 카드는 placeholder 배경으로 렌더링된다. 사진을 넣은 뒤에는 LLM을 다시 부를 필요 없이 이 스크립트 →
 `card-renderer`의 `npm run render`만 다시 돌리면 된다.
 
