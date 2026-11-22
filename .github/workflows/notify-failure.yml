@@ -9,6 +9,8 @@ name: notify-failure
 # - 수동 취소(cancelled)·건너뜀은 알리지 않는다
 #
 # 감시하는 워크플로와 별도로 돌아서 기존 워크플로의 권한(contents: read)은 그대로 둔다.
+# workflow_run 트리거는 기본 브랜치(main)에 있는 이 파일만 쓴다 — 브랜치에서 고쳐도 머지 전엔 반영 안 됨.
+# 테스트: insights-daily를 date=bad로 수동 실행(API 호출 전에 실패) → 이슈 생성, date 없이 다시 실행 → 자동으로 닫힘.
 on:
   workflow_run:
     workflows: [benefits-weekly, insights-daily]
@@ -57,11 +59,15 @@ jobs:
             .jobs[] | select(.conclusion != "success" and .conclusion != "skipped")
             | "- **\(.name)**: " + ([.steps[] | select(.conclusion == "failure") | .name] | join(", "))' || true)
 
-          # 실패 단계 로그 끝부분 (타임스탬프·job/단계 접두어 제거). 시크릿은 Actions가 이미 *** 로 가린다
+          # 실패 단계 로그 끝부분. 시크릿은 Actions가 이미 *** 로 가린다
+          #   sed: job/단계/타임스탬프 접두어(첫 줄엔 BOM이 붙어 온다)와 터미널 색상 코드 제거
+          #   awk: ##[group]~##[endgroup] 사이(단계 스크립트 원문·env 목록) 제거
+          #   grep: 빈 줄, Node 경고, 보조금24 페이지 진행 줄 제거 → 첫 ##[error] 앞 25줄
           log_tail=$(gh run view "$RUN_ID" --repo "$REPO" --log-failed 2>/dev/null \
-            | sed -E 's/^[^\t]*\t[^\t]*\t[0-9TZ:.-]+ //' \
-            | grep -vE '^\s*$|^##\[group\]|^##\[endgroup\]|DeprecationWarning|trace-deprecation' \
-            | grep -B40 -m1 -E '##\[error\]' | tail -40 || true)
+            | sed -E 's/^[^\t]*\t[^\t]*\t(\xEF\xBB\xBF)?[0-9TZ:.-]+ //; s/\x1b\[[0-9;]*m//g' \
+            | awk '/##\[group\]/{g=1} /##\[endgroup\]/{g=0; next} !g' \
+            | grep -vE '^\s*$|DeprecationWarning|trace-deprecation|[0-9]+페이지, [0-9]+/[0-9]+건' \
+            | grep -B25 -m1 -E '##\[error\]' | tail -25 || true)
 
           [ -n "$failed_steps" ] || failed_steps='(가져오지 못함 — 실행 페이지에서 확인)'
           [ -n "$log_tail" ] || log_tail='(로그를 가져오지 못함)'
