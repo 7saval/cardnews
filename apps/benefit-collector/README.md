@@ -16,8 +16,9 @@ npm install
 
 - `DATA_GO_KR_SERVICE_KEY` — 공공데이터포털 "행정안전부_대한민국 공공서비스(혜택) 정보" 인증키.
   Decoding 키를 넣는다 (Encoding 키를 넣어도 코드가 디코딩해서 쓴다)
-- `GEMINI_API_KEY` — 관련성 점수용. content-generator와 같은 키를 써도 된다
-- `ANTHROPIC_API_KEY` — Gemini가 429/503일 때만 쓰는 폴백 (없어도 Gemini가 정상이면 돈다)
+- `LLM_PRIMARY` — 관련성 점수 1순위 프로바이더. `haiku`(기본) 또는 `gemini`, 나머지 하나가 폴백
+- `ANTHROPIC_API_KEY` — 관련성 점수용 (기본 1순위). content-generator와 같은 키를 써도 된다
+- `GEMINI_API_KEY` — 1순위가 과부하·시간 초과일 때 쓰는 폴백 (없어도 1순위가 정상이면 돈다)
 
 ## 실행
 

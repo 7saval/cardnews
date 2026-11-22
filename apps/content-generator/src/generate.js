@@ -5,9 +5,9 @@
 //   fact-check에 실패하면 문제 목록을 넣어 1회 재생성하고, 그래도 실패하면 <out>.failed.json을
 //   남기고 실패한다 — 틀린 정보를 내보내는 것보다 낫다. (_docs/topic-pivot-benefits-plan.md §6.3)
 //
-// Gemini(1순위, 무료)가 429(할당량 소진)·500·503(과부하)으로 재시도까지 실패하거나 시간 초과(504·타임아웃)면
-// Claude Haiku(폴백)로 자동 전환한다. 그 외 에러(스키마 검증 실패, 인증 오류 등)는
-// 폴백하지 않고 즉시 실패시킨다 — 우리 쪽 버그를 폴백이 가리면 안 되기 때문.
+// 1순위(LLM_PRIMARY, 기본 Claude Haiku)가 일시적 오류(Haiku 429·500·529 / Gemini 429·500·503)로
+// 재시도까지 실패하거나 시간 초과면 다른 쪽(기본 Gemini)으로 자동 전환한다. 그 외 에러(스키마 검증 실패,
+// 인증 오류 등)는 폴백하지 않고 즉시 실패시킨다 — 우리 쪽 버그를 폴백이 가리면 안 되기 때문.
 // 배경: _docs/llm-provider-fallback-plan.md
 //
 // 사용법:
@@ -63,9 +63,26 @@ const ANTHROPIC_RETRYABLE_STATUS = new Set([429, 500, 529]);
 const GEMINI_TIMEOUT_MS = Math.max(10_000, Number(process.env.GEMINI_TIMEOUT_MS) || 120_000);
 
 // 시간 초과 — 서버의 504 또는 클라이언트 abort(상태 코드 없음). 느린 상태는 다시 보내도 또 느려서
-// 재시도 없이 바로 Haiku로 넘긴다
-const isDeadlineError = (err) => err?.status === 504 || err?.name === 'AbortError' || err?.name === 'TimeoutError';
+// 재시도 없이 바로 다른 프로바이더로 넘긴다
+const isDeadlineError = (err) =>
+  err?.status === 504 ||
+  err?.name === 'AbortError' ||
+  err?.name === 'TimeoutError' ||
+  err instanceof Anthropic.APIConnectionTimeoutError;
 const shouldFallBackFromGemini = (err) => GEMINI_RETRYABLE_STATUS.has(err?.status) || isDeadlineError(err);
+// 401(키 무효) 같은 우리 쪽 문제는 폴백으로 가리지 않는다
+const shouldFallBackFromHaiku = (err) => ANTHROPIC_RETRYABLE_STATUS.has(err?.status) || isDeadlineError(err);
+
+const PROVIDER_LABEL = { gemini: 'Gemini', haiku: 'Claude Haiku' };
+
+// LLM_PRIMARY로 1순위를 고른다 (haiku | gemini, 기본 haiku). 2026-11-22에 Gemini가 몇 주째 매번
+// 120초 타임아웃이라 기본을 Haiku로 바꿨다 (_docs/llm-provider-fallback-plan.md §7)
+function providerOrder() {
+  const primary = (process.env.LLM_PRIMARY || 'haiku').trim().toLowerCase();
+  if (primary === 'haiku') return ['haiku', 'gemini'];
+  if (primary === 'gemini') return ['gemini', 'haiku'];
+  throw new Error(`LLM_PRIMARY는 haiku 또는 gemini여야 합니다 (지금 값: "${process.env.LLM_PRIMARY}")`);
+}
 
 // 일시적 과부하/할당량 재시도는 지수 백오프로 최대 4회(최초 1회 + 재시도 3회) 시도.
 async function withRetry(fn, retryableStatus, { attempts = 4, baseDelayMs = 3000 } = {}) {
@@ -120,14 +137,14 @@ async function generateWithGemini(rawMaterial) {
 async function generateWithHaiku(rawMaterial) {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error(
-      'ANTHROPIC_API_KEY가 없습니다. apps/content-generator/.env 파일에 ANTHROPIC_API_KEY=발급받은키 를 추가하세요 (.env.example 참고) — Gemini 폴백에 필요합니다.',
+      'ANTHROPIC_API_KEY가 없습니다. apps/content-generator/.env 파일에 ANTHROPIC_API_KEY=발급받은키 를 추가하세요 (.env.example 참고).',
     );
   }
 
   const model = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  console.log(`Claude(${model}) 호출 중... (Gemini 폴백)`);
+  console.log(`Claude(${model}) 호출 중...`);
   const response = await withRetry(
     () =>
       client.messages.parse({
@@ -146,22 +163,41 @@ async function generateWithHaiku(rawMaterial) {
   return { text: JSON.stringify(response.parsed_output), model };
 }
 
-/** Gemini → (429/500/503 재시도 실패 또는 시간 초과면) Haiku 순서로 카피를 받아 JSON으로 파싱한다 */
+const CALL = { gemini: generateWithGemini, haiku: generateWithHaiku };
+const shouldFallBack = (provider, err) =>
+  provider === 'gemini' ? shouldFallBackFromGemini(err) : shouldFallBackFromHaiku(err);
+
+// 재생성(2회차) 때 1회차에 이미 폴백한 프로바이더를 다시 기다리지 않도록 기억한다
+const unavailable = new Set();
+
+/** 1순위 → (재시도 실패 또는 시간 초과면) 다른 프로바이더 순서로 카피를 받아 JSON으로 파싱한다 */
 async function generateCopy(userMessage) {
-  let provider = 'gemini';
-  let fellBack = false;
+  const order = providerOrder();
+  const candidates = order.filter((p) => !unavailable.has(p));
+  if (candidates.length === 0) candidates.push(order[order.length - 1]);
+
+  let provider;
   let result;
-  try {
-    result = await generateWithGemini(userMessage);
-  } catch (err) {
-    if (!shouldFallBackFromGemini(err)) throw err;
-    const why = isDeadlineError(err) ? `${GEMINI_TIMEOUT_MS / 1000}초 안에 응답 없음` : err.status;
-    console.warn(`\n⚠ Gemini 사용 불가(${why}), Claude Haiku로 전환합니다...`);
-    console.warn(`  Gemini 에러 원문: ${err.message}`);
-    provider = 'haiku';
-    fellBack = true;
-    result = await generateWithHaiku(userMessage);
+  for (let i = 0; i < candidates.length; i += 1) {
+    provider = candidates[i];
+    try {
+      result = await CALL[provider](userMessage);
+      break;
+    } catch (err) {
+      const next = candidates[i + 1];
+      if (!next || !shouldFallBack(provider, err)) throw err;
+      const why = !isDeadlineError(err)
+        ? err.status
+        : provider === 'gemini'
+          ? `${GEMINI_TIMEOUT_MS / 1000}초 안에 응답 없음`
+          : '응답 시간 초과';
+      console.warn(`\n⚠ ${PROVIDER_LABEL[provider]} 사용 불가(${why}), ${PROVIDER_LABEL[next]}로 전환합니다...`);
+      console.warn(`  ${PROVIDER_LABEL[provider]} 에러 원문: ${err.message}`);
+      unavailable.add(provider);
+    }
   }
+  // 1순위가 아닌 쪽이 만들었으면 폴백
+  const fellBack = provider !== order[0];
 
   try {
     return { copy: JSON.parse(result.text), provider, model: result.model, fellBack };
@@ -241,7 +277,7 @@ async function main() {
   writeFileSync(outPath.replace(/\.json$/, '.caption.txt'), buildCaption(data), 'utf-8');
 
   console.log(`\n✔ 카드 ${data.cards.length}개짜리 카드뉴스 JSON을 생성했습니다: ${outPath}`);
-  console.log(`  provider: ${gen.provider}${gen.fellBack ? ' (Gemini 폴백)' : ''} / model: ${gen.model}`);
+  console.log(`  provider: ${gen.provider}${gen.fellBack ? ` (${PROVIDER_LABEL[providerOrder()[0]]} 폴백)` : ''} / model: ${gen.model}`);
   console.log(`  fact-check: 통과 (${attempts.length}회 생성)`);
   console.log(`  series_title: ${data.series_title}`);
 }

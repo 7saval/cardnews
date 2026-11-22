@@ -8,8 +8,9 @@
 LLM이 쓴 문구의 숫자는 원문과 대조한다(`src/fact-check.js`). 설계 배경은
 `_docs/topic-pivot-benefits-plan.md` §2, §6.2, §6.3 참고.
 
-**Gemini(1순위, 무료) → Claude Haiku(폴백)** 2-프로바이더 구조. 설계 배경은
-`_docs/llm-provider-fallback-plan.md` 참고.
+**Claude Haiku(1순위) → Gemini(폴백)** 2-프로바이더 구조. `LLM_PRIMARY=gemini`로 순서를 되돌릴 수 있다.
+2026-11-22까지는 Gemini가 1순위였는데, 몇 주째 매번 120초 타임아웃이라 바꿨다. 설계 배경은
+`_docs/llm-provider-fallback-plan.md` 참고 (§7이 이번 교체).
 
 ## 준비
 
@@ -22,17 +23,18 @@ LLM이 쓴 문구의 숫자는 원문과 대조한다(`src/fact-check.js`). 설�
 2. `.env` 생성 (`.env.example` 참고) 후 아래 값 채우기
 
    ```
-   GEMINI_API_KEY=
-   GEMINI_MODEL=gemini-3.8-flash
+   LLM_PRIMARY=haiku
 
    ANTHROPIC_API_KEY=
    ANTHROPIC_MODEL=claude-haiku-4-5
+
+   GEMINI_API_KEY=
+   GEMINI_MODEL=gemini-3.8-flash
    ```
 
-   - `GEMINI_API_KEY`는 필수. 이게 없으면 아예 실행이 안 된다.
-   - `ANTHROPIC_API_KEY`는 Gemini가 429(무료 한도 소진)/503(과부하)일 때만 쓰이는 폴백용이라,
-     당장 없어도 Gemini가 정상일 땐 문제없이 돌아간다. 다만 Gemini가 막히는 날엔
-     이 키가 없으면 그 순간 실패하니, 안정적으로 쓰려면 미리 채워두는 걸 권장.
+   - 1순위 프로바이더의 키는 필수 (기본은 `ANTHROPIC_API_KEY`). 키가 무효(401)면 폴백하지 않고 바로 실패한다.
+   - 폴백 쪽 키(기본은 `GEMINI_API_KEY`)는 1순위가 과부하·시간 초과일 때만 쓰인다. 없어도 1순위가 정상이면
+     돌아가지만, 1순위가 막히는 날엔 그 순간 실패하니 채워 두는 걸 권장.
 
 ## 입력 파일
 
@@ -54,8 +56,9 @@ npm run generate -- --input <수집결과.json> --handle <내 인스타 핸들> 
 
 1. 수집 결과를 검증하고(`shared/schemas/validate-benefits.js`) 항목별 원문을 LLM 입력으로 만든다.
    원문이 1,500자를 넘으면 LLM 입력에서만 자른다 (fact-check는 전체 원문과 대조)
-2. LLM 호출 — Gemini(`ai.models.generateContent`)로 먼저 시도. 429/503이면 지수 백오프로 최대 3회 재시도,
-   그래도 실패하면 Claude Haiku로 자동 전환 (429/500/529 대상, 역시 최대 3회)
+2. LLM 호출 — 1순위(기본 Claude Haiku, `messages.parse` 구조화 출력)로 먼저 시도. 일시적 오류
+   (Haiku 429/500/529, Gemini 429/500/503)면 지수 백오프로 최대 3회 재시도, 그래도 실패하거나 시간 초과면
+   다른 프로바이더로 자동 전환. 재생성 때는 이미 폴백한 프로바이더를 건너뛴다
 3. **assemble** — LLM 카피와 원문을 `source_id`로 합친다. 카드 순서·개수는 수집 결과를 따르고,
    LLM이 카드를 빠뜨리거나 없는 ID를 지어내거나 중복으로 쓰면 에러
 4. 카드뉴스 스키마 검증(`shared/schemas/validate-card-news.js`)
@@ -80,7 +83,7 @@ fact-check가 못 잡는 것(숫자 없는 거짓말 "무료"·"누구나", 한�
 
 ```
 ✔ 카드 5개짜리 카드뉴스 JSON을 생성했습니다: output/benefits-test.json
-  provider: gemini / model: gemini-3.8-flash
+  provider: haiku / model: claude-haiku-4-5
   fact-check: 통과 (1회 생성)
   series_title: 몰랐던 고용·창업 혜택 5선
 ```

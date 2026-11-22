@@ -16,7 +16,7 @@
 flowchart LR
     subgraph Phase1["Phase 1 — 지금 동작하는 파이프라인"]
         RC["research-collector<br/>카카오 로컬 + 네이버 트렌드"]
-        CG["content-generator<br/>Gemini → Claude Haiku 폴백"]
+        CG["content-generator<br/>Claude Haiku → Gemini 폴백"]
         CR["card-renderer<br/>React + Playwright"]
         RC -->|"*.txt (소재 텍스트)"| CG
         CG -->|"*.json (card-news 스키마)"| CR
@@ -47,7 +47,7 @@ flowchart LR
 | 앱 | 상태 | 역할 |
 |---|---|---|
 | [`apps/research-collector`](apps/research-collector) | ✅ 동작 | 카카오 로컬 API(장소 후보) + 네이버 검색어트렌드(랭킹)를 합쳐 소재 텍스트 생성 |
-| [`apps/content-generator`](apps/content-generator) | ✅ 동작 | 소재 텍스트 → LLM(Gemini 1순위, Claude Haiku 폴백)으로 카드뉴스 JSON 구조화 |
+| [`apps/content-generator`](apps/content-generator) | ✅ 동작 | 소재 텍스트 → LLM(Claude Haiku 1순위, Gemini 폴백)으로 카드뉴스 JSON 구조화 |
 | [`apps/card-renderer`](apps/card-renderer) | ✅ 동작 | 카드뉴스 JSON → React 컴포넌트 렌더링 → Playwright로 PNG 추출 |
 | [`apps/image-matcher`](apps/image-matcher) | ✅ 동작 | 허락받은 가게 사진(`images/places/<가게>/`)을 카드 배경 + 출처 표기로 연결, 허락 요청 대상(가게 인스타/홈페이지) 찾기 (Phase 3) |
 | [`apps/insights-collector`](apps/insights-collector) | ✅ 동작 | 팔로워/도달 등 일별 인사이트 수집 (Phase 2) — GitHub Actions 크론(매일 KST 00:30)으로 Supabase `daily_insights`에 적재 |
@@ -84,7 +84,8 @@ cd ../content-generator
 npm run generate -- --input ../research-collector/output/<1단계-출력파일>.txt --handle <내 인스타 핸들> --out output/result.json
 ```
 
-Gemini로 먼저 시도하고, 무료 한도 소진(429)이나 과부하(503)면 Claude Haiku로 자동 전환한다.
+Claude Haiku로 먼저 시도하고, 과부하(429/500/529)나 시간 초과면 Gemini로 자동 전환한다
+(`LLM_PRIMARY=gemini`면 반대 순서).
 어느 프로바이더가 실제로 생성했는지는 `output/result.meta.json`에 남는다.
 
 ### 3. 카드 이미지 렌더링
@@ -119,12 +120,12 @@ npm run pipeline -- --handle hotsoozip                               # 수집 �
 
 - 매주 월요일 KST 07:00에 `--collect`로 1회차를 만들어 실행 결과물(artifact) `cardnews-<번호>`로 올린다. 저장소에는 쓰지 않는다
 - Actions 탭에서 수동 실행도 된다 (시리즈·카테고리·자치구·개수 입력)
-- 필요한 Secrets: `DATA_GO_KR_SERVICE_KEY`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`(폴백)
+- 필요한 Secrets: `DATA_GO_KR_SERVICE_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`(폴백)
 - 흐름: artifact 내려받기 → 카드·`caption.txt` 검수 → 인스타 게시 → `mark-published`로 이력 기록·커밋
 
 ## 문서
 
 - [`_docs/insta-cardnews-automation-plan.md`](_docs/insta-cardnews-automation-plan.md) — 전체 로드맵, Phase별 설계, 체크리스트
-- [`_docs/llm-provider-fallback-plan.md`](_docs/llm-provider-fallback-plan.md) — Gemini→Haiku 폴백 설계 배경
+- [`_docs/llm-provider-fallback-plan.md`](_docs/llm-provider-fallback-plan.md) — 2-프로바이더 폴백 설계 배경 (§7: 2026-11-22 기본을 Haiku로 교체)
 - [`_docs/dev-log/`](_docs/dev-log) — 작업 일지
 - [`design-reference/spec.md`](design-reference/spec.md) — 카드 레이아웃 스펙

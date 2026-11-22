@@ -68,3 +68,18 @@ generate.js
 - Gemini/Haiku 동시 호출 후 결과 비교·품질 평가 (필요해지면 별도 논의)
 - 프로바이더별 프롬프트 최적화 (일단 동일 프롬프트 재사용, 품질 차이 발생 시 추후 대응)
 - 3번째 프로바이더 추가 (지금은 2-프로바이더 폴백까지만)
+
+## 7. 2026-11-22 변경 — 기본 프로바이더를 Claude Haiku로 교체
+
+§2 "Gemini가 항상 1순위" 원칙을 뒤집는다. 폴백 구조(2-프로바이더, 일시적 오류만 폴백, 우리 쪽 오류는 즉시 실패)는 그대로다.
+
+- **근거**: 11-09·11-14·11-16·11-22 실행에서 Gemini가 한 번도 응답하지 않았다(매번 120초 타임아웃 또는 504 `DEADLINE_EXCEEDED`). 사실상 Haiku가 매번 생성했고, 실행마다 호출당 2분씩 기다리느라 6분 이상을 썼다. §1의 "무료라서 1순위" 근거보다 가용성(§1의 주 근거)이 더 중요하다
+- **비용**: 주 1회 실행 기준 관련성 점수(최대 수십 건) + 카피 1~2회. Haiku로 몇십~몇백 원 수준이라 무시할 만하다
+- **동작**
+  - `LLM_PRIMARY` 환경변수로 1순위 선택: `haiku`(기본) | `gemini`. 나머지가 폴백. 잘못된 값은 시작할 때 실패
+  - 폴백 판정: Haiku 429/500/529(재시도 3회 후)·시간 초과(`APIConnectionTimeoutError`) → Gemini. Gemini는 기존과 같은 규칙(429/500/503 재시도 후, 504·타임아웃 즉시)
+  - 401(키 무효)·400 등은 폴백하지 않고 실패. 11-16 실행이 Secret 키 무효로 실패한 것처럼 키 문제는 바로 드러나야 한다
+  - 한 번 폴백한 프로바이더는 그 실행 동안 건너뛴다 (benefit-collector 배치, content-generator 재생성 둘 다)
+  - `.meta.json`의 `fellBack`은 "1순위가 아닌 쪽이 생성했는가"로 의미가 바뀐다 (`provider` 필드로 어느 쪽인지 구분)
+- **되돌리기**: Gemini가 안정되면 `.env` / 워크플로 env에 `LLM_PRIMARY=gemini`
+- **코드**: `apps/benefit-collector/src/lib/llm.js`(`providerOrder`, `shouldFallBackFromHaiku`, `generateJson`), `apps/content-generator/src/generate.js`(`generateCopy`). 테스트 `apps/benefit-collector/test/llm-timeout.test.js`
